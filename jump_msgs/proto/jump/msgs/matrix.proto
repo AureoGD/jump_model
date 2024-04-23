@@ -1,0 +1,16 @@
+
+syntax = "proto3";
+package jump.msgs;
+
+// created using https://github.com/arpg/HAL/blob/master/HAL/Messages/Matrix.proto files
+
+message MatrixMsg {
+    uint32 rows = 1;
+    // columns deduced by division. Data stored as column major
+    repeated double data = 2 [packed=true];
+  }
+  
+  message VectorMsg {
+    
+    repeated double data = 1 [packed=true];
+  }

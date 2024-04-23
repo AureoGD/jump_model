@@ -1,0 +1,18 @@
+syntax = "proto3";
+package jump.msgs;
+
+import "jump/msgs/matrix.proto";
+
+message RobotInfos{
+    
+    uint32 type = 1;
+    VectorMsg base_pos = 2;
+    VectorMsg base_vel = 3;
+    VectorMsg com_pos = 4;
+    VectorMsg com_vel = 5;
+    VectorMsg foot_pos = 6;
+    VectorMsg joint_pos = 7;
+    VectorMsg joint_vel = 8;
+    VectorMsg joint_effot = 9;
+    bool cons_violation = 10;
+}

@@ -1,0 +1,11 @@
+syntax = "proto3";
+package jump.msgs;
+
+import "jump/msgs/matrix.proto";
+
+message ResquestAction {
+    uint32 type = 1;
+    MatrixMsg mtx = 2;
+    VectorMsg vec = 3;
+  }
+  
