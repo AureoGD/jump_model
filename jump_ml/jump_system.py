@@ -150,7 +150,7 @@ class JumpSystem(object):
                 )
                 if result and self.response_reset.data:
                     print(
-                        f"##### EPISODE {self.robot_model.n_ep} FINISHED-> EP. REWARD = {self.robot_model.utils.curent_reward} / MEAM EP. REWARD = {self.robot_model.utils.curent_m_reward} #####"
+                        f"##### EPISODE {self.robot_model.n_ep}/{self.robot_model.max_ep} FINISHED-> EP. REWARD = {self.robot_model.utils.curent_reward} / MEAM EP. REWARD = {self.robot_model.utils.curent_m_reward} #####"
                     )
                 else:
                     print("##### ERROR IN RESET SERVICE CALL - UNPAUSE #####")

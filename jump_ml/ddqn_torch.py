@@ -1,7 +1,7 @@
 #### imports ####
 import os
 import numpy as np
-import time 
+import time
 
 import torch as T
 import torch.nn as nn
@@ -100,7 +100,7 @@ class Agent:
         mem_size,
         batch_size,
         eps_min=0.01,
-        eps_dec=5e-5,
+        eps_dec=5e-4,
         replace=1000,
         chkpt_dir="tmp/dueling_ddqn",
     ):
@@ -183,12 +183,6 @@ class Agent:
             self.batch_size
         )
 
-        # states = T.tensor(state).to(self.q_eval.device, dtype=T.float64)
-        # new_states = T.tensor(new_state).to(self.q_eval.device, dtype=T.float64)
-        # actions = T.tensor(action).to(self.q_eval.device, dtype=T.int32)
-        # reward = T.tensor(reward).to(self.q_eval.device, dtype=T.float64)
-        # dones = T.tensor(done).to(self.q_eval.device, dtype=T.int32)
-
         states = T.from_numpy(state).to(self.q_eval.device)
         new_states = T.from_numpy(new_state).to(self.q_eval.device)
         actions = T.from_numpy(action).to(self.q_eval.device)
@@ -196,11 +190,10 @@ class Agent:
         dones = T.from_numpy(done).to(self.q_eval.device)
 
         indices = np.arange(self.batch_size, dtype=np.int32)
-        # a = time.time()
+
         q_pred = self.q_eval.forward(states)[indices, actions]
         q_next = self.q_next.forward(new_states)
         q_eval = self.q_eval.forward(new_states)
-        # print(time.time()-a)
 
         max_actions = T.argmax(q_eval, dim=1)
 

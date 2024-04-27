@@ -252,10 +252,11 @@ void JumpController::PreUpdate(const gz::sim::UpdateInfo &_info,
     }
 
     // call the service
-    bool executed = _Node.Request("/ChoseAction", this->req, 5, this->res, result);
-    // gzmsg <<  << std::endl;
+    // bool executed = _Node.Request("/ChoseAction", this->req, 5, this->res, result);
     // call the PO using the response of the service
-    bool valor = this->_JumpRGC.ChooseRGCPO(this->res.data());
+    // bool valor = this->_JumpRGC.ChooseRGCPO(this->res.data());
+
+    bool valor = this->_JumpRGC.ChooseRGCPO(2);
 
     // std::cout<<*this->StatesList[9]<< std::endl;
     // std::cout<<this->_JumpRGC.refHL<<std::endl;

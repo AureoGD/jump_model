@@ -100,11 +100,18 @@ JumpRGC::JumpRGC(JumpRobot *Robot, Eigen::Matrix<double, 2, 1> *_q, Eigen::Matri
     this->po[2].Uu.resize(this->po[2].ny, this->po[2].ny);
     this->po[2].Uu << 4.00, 0.00,
         0.00, 4.00;
+    this->po[2].Lcons.resize(2, 1);
+    this->po[2].Lcons << -100, -100;
+    this->po[2].Ucons.resize(2, 1);
+    this->po[2].Ucons << 100, 100;
+
     this->po[2].Vq_ref.resize(this->po[2].ny * this->po[2].N, 1);
     this->po[2].MQq.resize(this->po[2].ny * this->po[0].N, this->po[2].nu * this->po[2].N);
     this->po[2].MQq.setZero();
     this->po[2].MUu.resize(this->po[2].nu * this->po[0].M, this->po[2].nu * this->po[2].M);
     this->po[2].MUu.setZero();
+    this->po[2].V_Lcons.resize(2 * this->po[2].N, 1); // number of variables constraineds times predicte horizon
+    this->po[2].U_Lcons.resize(2 * this->po[2].N, 1);
 
     for (int i = 0; i < this->po[2].N; i++)
     {
@@ -157,6 +164,11 @@ void JumpRGC::RGCConfig(double _ts, double _Kp, double _Kd)
     // std::cout << "MPC period: "<< this->ts<<std::endl;
     this->Kp = _Kp;
     this->Kd = _Kd;
+
+    // Flight phase L matrix
+    this->L_fp.block(0, 0, 2, 2) = -_Kd * Eigen::MatrixXd::Identity(2, 2);
+    this->L_fp.block(0, 2, 2, 2) = -_Kp * Eigen::MatrixXd::Identity(2, 2);
+    this->L_fp.block(0, 8, 2, 2) = _Kp * Eigen::MatrixXd::Identity(2, 2);
 }
 
 bool JumpRGC::ChooseRGCPO(int npo)
@@ -216,6 +228,7 @@ void JumpRGC::SetupSP(int npo)
     this->Ba_sp.block(0, 0, 7, 2) = this->ts * this->B_sp;
 
     this->Phi.block(0, 0, 2, 9) = this->C_sp * this->Aa_sp;
+
     for (int i = 1; i < this->po[npo].N; i++) // check i<N ?
     {
         this->Phi.block(2 * i, 0, 2, 9) = this->Phi.block(2 * (i - 1), 0, 2, 9) * this->Aa_sp;
@@ -264,24 +277,32 @@ void JumpRGC::SetupFP(int npo)
     this->Ba_fp.block(0, 0, 8, 2) = this->ts * this->B_fp;
 
     this->Phi.block(0, 0, 2, 10) = this->C_fp * this->Aa_fp;
+    this->P_cons.block(0, 0, 2, 10) = this->L_fp;
 
     for (int i = 1; i < this->po[npo].N; i++) // check i<N ?
     {
         this->Phi.block(2 * i, 0, 2, 10) = this->Phi.block(2 * (i - 1), 0, 2, 10) * this->Aa_fp;
+        this->P_cons.block(2 * i, 0, 2, 10) = this->P_cons.block(2 * (i - 1), 0, 2, 10) * this->Aa_fp;
     }
-
     for (int i = 0; i < this->po[npo].N; i++)
     {
         if (i == 0)
+        {
             this->aux_mtx = this->C_fp * this->Ba_fp;
+            this->cons_aux = this->Kp * Eigen::MatrixXd::Identity(2, 2);
+        }
         else
+        {
             this->aux_mtx = this->Phi.block(2 * (i - 1), 0, 2, 10) * this->Ba_fp;
+            this->cons_aux = this->P_cons.block(2 * (i - 1), 0, 2, 10) * this->Ba_fp;
+        }
 
         for (int j = 0; j < this->po[npo].M; j++)
         {
             if (2 * (i + j) <= this->po[npo].M * 2)
             {
                 this->G.block((i + j) * 2, j * 2, 2, 2) = this->aux_mtx;
+                this->G_cons.block((i + j) * 2, j * 2, 2, 2) = this->cons_aux;
             }
         }
     }
@@ -299,6 +320,7 @@ void JumpRGC::SetupFP(int npo)
     this->H = 2 * (this->G.transpose() * this->po[npo].MQq * this->G + this->po[npo].MUu);
 
     this->F = 2 * (((this->Phi * this->x) - this->po[npo].Vq_ref).transpose()) * this->po[npo].MQq * this->G;
+    this->linear this->lowerBound =
 }
 
 void JumpRGC::ClearPO()
@@ -319,9 +341,15 @@ void JumpRGC::ConfPO(int index)
     this->G.resize(this->po[index].ny * this->po[index].N, this->po[index].nu * this->po[index].M);
     this->G.setZero();
 
+    this->G_cons.resize(this->po[index].ny * this->po[index].N, this->po[index].nu * this->po[index].M);
+    this->G_cons.setZero();
+
     // resize free response matrix
     this->Phi.resize(this->po[index].ny * this->po[index].N, this->po[index].nx + this->po[index].ny);
     this->Phi.setZero();
+
+    this->P_cons.resize(this->po[index].ny * this->po[index].N, this->po[index].nx + this->po[index].ny);
+    this->P_cons.setZero();
 
     this->H.resize(this->po[index].nu * this->po[index].M, this->po[index].nu * this->po[index].M);
     this->H.setZero();
@@ -330,6 +358,7 @@ void JumpRGC::ConfPO(int index)
     this->F.setZero();
 
     this->aux_mtx.resize(this->po[index].ny, this->po[index].nx + this->po[index].ny);
+    this->cons_aux.resize(this->po[index].ny, this->po[index].nx + this->po[index].ny);
 
     this->solver.settings()->setVerbosity(false);
 
@@ -340,9 +369,14 @@ void JumpRGC::ConfPO(int index)
     solver.data()->setNumberOfConstraints(0);
 
     this->hessian_sparse = this->H.sparseView();
+    this->linearMatrix = this->G_cons.sparseView();
+
     solver.data()->clearHessianMatrix();
     solver.data()->setHessianMatrix(this->hessian_sparse);
     solver.data()->setGradient(F.transpose());
+    // solver.data()->setLinearConstraintsMatrix(this->linearMatrix);
+    // solver.data()->setLowerBound(this->lowerBound);
+    // solver.data()->setUpperBound(this->upperBound);
 
     if (!this->solver.initSolver())
     {
@@ -354,7 +388,11 @@ bool JumpRGC::SolvePo()
 {
     this->hessian_sparse = this->H.sparseView();
     this->solver.updateHessianMatrix(this->hessian_sparse);
+    this->linearMatrix = this->G_cons.sparseView();
+    this->solver.updateLinearConstraintsMatrix(this->linearMatrix);
     this->solver.updateGradient(this->F.transpose());
+    this->solver.updateLowerBound(this->lowerBound);
+    this->solver.updateUpperBound(this->upperBound);
 
     // this->solver.solveProblem();
 

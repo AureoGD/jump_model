@@ -1,0 +1,5 @@
+jump_rgc/build
+jump_msgs/build
+jump_ml/__pycache__
+.vscode
+TrainingData

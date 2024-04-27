@@ -59,7 +59,7 @@ class JumpModel(object):
         # number of the current episode
         self.n_ep = 0
         # maximum episodes
-        self.max_ep = 20
+        self.max_ep = 1500
         # number of episodes to save the model
         self.save_model_every = 10
         # number of the current step
@@ -132,9 +132,9 @@ class JumpModel(object):
         )
 
         self.weight_joint_e = 0.001
-        self.weight_base_dist = 1
-        self.weight_foot_dist = 1
-        self.min_reward = -500
+        self.weight_base_dist = 1.15
+        self.weight_foot_dist = 1.25
+        self.min_reward = -100
 
         qd_max = 100
         self.alfa = np.diagflat(
