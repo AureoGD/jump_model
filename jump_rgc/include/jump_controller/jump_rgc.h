@@ -3,6 +3,7 @@
 
 #include <OsqpEigen/OsqpEigen.h>
 #include "jump_controller/jump_robot_model.h"
+#include "math.h"
 
 class JumpRGC
 {
@@ -27,6 +28,7 @@ public:
     bool SolvePo();
 
 private:
+    bool constraint = true;
     const double PI = std::atan(1.0) * 4;
     double Kp, Kd, ts, g;
     int last_po, nu, ny;
@@ -41,6 +43,7 @@ private:
     Eigen::Matrix<double, 9, 9> Aa_sp = Eigen::Matrix<double, 9, 9>::Zero();
     Eigen::Matrix<double, 9, 2> Ba_sp = Eigen::Matrix<double, 9, 2>::Zero();
     Eigen::Matrix<double, 2, 9> C_sp = Eigen::Matrix<double, 2, 9>::Zero();
+    Eigen::Matrix<double, 2, 9> L_sp = Eigen::Matrix<double, 2, 9>::Zero();
 
     // SS matrices flight phase
     Eigen::Matrix<double, 8, 8> A_fp = Eigen::Matrix<double, 8, 8>::Zero();
@@ -60,7 +63,7 @@ private:
 
     struct parameters_PO
     {
-        int N, M, nu, ny, nx;
+        int N, M, nu, ny, nx, nc;
         Eigen::MatrixXd q_ref, Qq, Uu, Vq_ref, Lcons, Ucons, V_Lcons, V_Ucons, MQq, MUu;
     };
 

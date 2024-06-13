@@ -33,7 +33,7 @@ public:
 
   int OnEvent();
 
-  int action = -1;
+  int action = 1;
 
   bool request = false;
 
