@@ -273,6 +273,7 @@ void JumpRGC::SetupSP(int npo)
     Cf << (-a_coef * n1 + t1).transpose(), (a_coef * n1 + t1).transpose(), n1.transpose();
 
     auto FC_max = -Cf * inv_J;
+
     this->L_sp.block(0, 0, 2, 2) = -this->Kd * gamma_star;
 
     this->Phi.block(0, 0, 2, 9) = this->C_sp * this->Aa_sp;
@@ -289,15 +290,17 @@ void JumpRGC::SetupSP(int npo)
     {
         if (i == 0)
         {
+            std::cout << i << std::endl;
             this->aux_mtx = this->C_sp * this->Ba_sp;
             this->cons_aux = FC_max * this->Kp * Eigen::MatrixXd::Identity(2, 2);
         }
         else
         {
+
             this->aux_mtx = this->Phi.block(2 * (i - 1), 0, 2, 9) * this->Ba_sp;
-            this->cons_aux = FC_max * this->P_cons.block(3 * (i - 1), 0, 2, 10) * this->Ba_fp;
+            this->cons_aux = FC_max * this->P_cons.block(2 * (i - 1), 0, 2, 9) * this->Ba_sp;
         }
-        std::cout << this->cons_aux << std::endl;
+
         for (int j = 0; j < this->po[npo].M; j++)
         {
             if (2 * (i + j) <= this->po[npo].M * 2)
@@ -307,7 +310,7 @@ void JumpRGC::SetupSP(int npo)
             }
         }
     }
-
+    std::cout << "heu" << std::endl;
     // update the states vector [dr, q, r, g, qa]
     this->x << _JumpRobot->com_vel,
         *(q),
