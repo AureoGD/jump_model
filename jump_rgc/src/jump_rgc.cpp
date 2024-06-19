@@ -66,7 +66,7 @@ JumpRGC::JumpRGC(JumpRobot *Robot, Eigen::Matrix<double, 2, 1> *_q, Eigen::Matri
         this->po[0].V_Ucons.block(i * this->po[0].nc, 0, 3, 1) = this->po[0].Ucons;
     }
 
-    std::cout << this->po[0].V_Lcons << std::endl;
+    // std::cout << this->po[0].V_Lcons << std::endl;
     // ############################# PO1 ######################################
     this->po[1].ny = 2; // create a "global variable"
     this->po[1].nu = 2;
@@ -84,11 +84,19 @@ JumpRGC::JumpRGC(JumpRobot *Robot, Eigen::Matrix<double, 2, 1> *_q, Eigen::Matri
     this->po[1].Uu << 4.00, 0.00,
         0.00, 4.00;
 
+    this->po[1].Lcons.resize(3, 1);
+    this->po[1].Lcons << -OsqpEigen::INFTY, 0, -this->g * 0.25 * _JumpRobot->m_total;
+    this->po[1].Ucons.resize(3, 1);
+    this->po[1].Ucons << 0, OsqpEigen::INFTY, -this->g * 5 * _JumpRobot->m_total;
+
     this->po[1].Vq_ref.resize(this->po[1].ny * this->po[1].N, 1);
     this->po[1].MQq.resize(this->po[1].ny * this->po[0].N, this->po[1].nu * this->po[1].N);
     this->po[1].MQq.setZero();
     this->po[1].MUu.resize(this->po[1].nu * this->po[0].M, this->po[1].nu * this->po[1].M);
     this->po[1].MUu.setZero();
+
+    this->po[1].V_Lcons.resize(3 * this->po[1].N, 1); // number of variables constrained times predicte horizon
+    this->po[1].V_Ucons.resize(3 * this->po[1].N, 1);
 
     for (int i = 0; i < this->po[1].N; i++)
     {
@@ -98,6 +106,8 @@ JumpRGC::JumpRGC(JumpRobot *Robot, Eigen::Matrix<double, 2, 1> *_q, Eigen::Matri
         {
             this->po[1].MUu.block(i * this->po[1].nu, i * this->po[1].nu, this->po[1].nu, this->po[1].nu) = this->po[1].Uu;
         }
+        this->po[1].V_Lcons.block(i * this->po[1].nc, 0, 3, 1) = this->po[1].Lcons;
+        this->po[1].V_Ucons.block(i * this->po[1].nc, 0, 3, 1) = this->po[1].Ucons;
     }
 
     // ############################# PO2 ######################################
@@ -116,6 +126,7 @@ JumpRGC::JumpRGC(JumpRobot *Robot, Eigen::Matrix<double, 2, 1> *_q, Eigen::Matri
     this->po[2].Uu.resize(this->po[2].ny, this->po[2].ny);
     this->po[2].Uu << 4.00, 0.00,
         0.00, 4.00;
+
     this->po[2].Lcons.resize(2, 1);
     this->po[2].Lcons << -100, -100;
     this->po[2].Ucons.resize(2, 1);
@@ -290,7 +301,7 @@ void JumpRGC::SetupSP(int npo)
     {
         if (i == 0)
         {
-            std::cout << i << std::endl;
+            // std::cout << i << std::endl;
             this->aux_mtx = this->C_sp * this->Ba_sp;
             this->cons_aux = FC_max * this->Kp * Eigen::MatrixXd::Identity(2, 2);
         }
@@ -310,7 +321,7 @@ void JumpRGC::SetupSP(int npo)
             }
         }
     }
-    std::cout << "heu" << std::endl;
+    // std::cout << "heu" << std::endl;
     // update the states vector [dr, q, r, g, qa]
     this->x << _JumpRobot->com_vel,
         *(q),
@@ -395,9 +406,10 @@ void JumpRGC::SetupFP(int npo)
 
 void JumpRGC::ClearPO()
 {
-    // solver.clearSolver();
+
+    this->solver.data()->clearLinearConstraintsMatrix();
+    this->solver.data()->clearHessianMatrix();
     this->solver.clearSolver();
-    // this->solver.clearSolverVariables(); //
 }
 
 void JumpRGC::ConfPO(int index)
@@ -462,8 +474,6 @@ void JumpRGC::ConfPO(int index)
 
     if (!this->solver.initSolver())
         std::cout << "***************** PO Inicialization Problem ***************** " << std::endl;
-    else
-        std::cout << "***************** PO Inicialized ***************** " << std::endl;
 }
 
 bool JumpRGC::SolvePo()
@@ -483,12 +493,12 @@ bool JumpRGC::SolvePo()
     {
         this->QPSolution = this->solver.getSolution();
         this->delta_qref = this->QPSolution.block(0, 0, this->nu, 1);
-        std::cout << "Solved" << std::endl;
+        // std::cout << "Solved" << std::endl;
         return 1;
     }
     else
     {
-        std::cout << "Not solved" << std::endl;
+        // std::cout << "Not solved" << std::endl;
         return 0;
     }
 }

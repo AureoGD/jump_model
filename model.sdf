@@ -166,12 +166,12 @@
               <uri>model://home/agd/jump_model/meshes/foot.dae</uri>
             </mesh>
           </geometry>
-          <material>
+          <!-- <material>
             <script>
               <uri>file://media/materials/scripts/gazebo.material</uri>
               <name>Gazebo/GreenTransparent</name>
             </script>
-          </material>
+          </material> -->
         </visual>
         <collision name="foot_collision">
           <pose>0 0 0 0 0 0</pose>

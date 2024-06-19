@@ -252,11 +252,11 @@ void JumpController::PreUpdate(const gz::sim::UpdateInfo &_info,
     }
 
     // call the service
-    // bool executed = _Node.Request("/ChoseAction", this->req, 5, this->res, result);
+    bool executed = _Node.Request("/ChoseAction", this->req, 5, this->res, result);
     // call the PO using the response of the service
-    // bool valor = this->_JumpRGC.ChooseRGCPO(this->res.data());
+    this->const_retun = this->_JumpRGC.ChooseRGCPO(this->res.data());
 
-    bool valor = this->_JumpRGC.ChooseRGCPO(0);
+    // bool valor = this->_JumpRGC.ChooseRGCPO(3);
 
     // std::cout<<*this->StatesList[9]<< std::endl;
     // std::cout<<this->_JumpRGC.refHL<<std::endl;
@@ -326,7 +326,7 @@ void JumpController::PostUpdate(const gz::sim::UpdateInfo &_info,
   this->ModelStatesMsg.Clear();
   for (int i = 0; i <= 10; i++)
     hal::WriteVector(*this->StatesList[i], &this->ModelStatesMsg);
-  this->ModelStatesMsg.add_data(0);
+  this->ModelStatesMsg.add_data(static_cast<double>(this->const_retun));
   this->ModelStatesMsg.add_data(static_cast<double>(this->touch_st));
   // Publish the roobot state msg
   this->modelSTPub->Publish(this->ModelStatesMsg);
@@ -338,7 +338,7 @@ bool JumpController::srvEcho(const gz::msgs::Boolean &_req,
   _rep.Clear();
   for (int i = 0; i <= 10; i++)
     hal::WriteVector(*this->StatesList[i], &_rep);
-  _rep.add_data(0);
+  _rep.add_data(static_cast<double>(this->const_retun));
   _rep.add_data(static_cast<double>(this->touch_st));
   return true;
 }
@@ -346,13 +346,9 @@ bool JumpController::srvEcho(const gz::msgs::Boolean &_req,
 void JumpController::TouchCB(const gz::msgs::Wrench &msg)
 {
   if (abs(msg.force().z()) > 10)
-  {
     this->touch_st_cb = true;
-  }
   else
-  {
     this->touch_st_cb = false;
-  }
   this->touch_st = this->touch_st_cb * this->last_touch_state_cb;
   this->last_touch_state_cb = this->touch_st_cb;
 }

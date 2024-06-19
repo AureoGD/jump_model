@@ -136,6 +136,7 @@ public:
 
     bool states_type = true;
 
+    bool const_retun = false;
     std::string ts_topic = "/JumpRobot/foot/force_torque";
     std::string ts_servece = "/JumpRobotTouchSensor/enable";
     gz::msgs::Boolean ts_req;

@@ -228,7 +228,7 @@ class JumpModel(object):
         self.episode_foot_distance += foot_distance
         reward += self.weight_foot_dist * foot_distance
 
-        reward += -5 * self.cons_viol.data
+        reward += -5 * (1 - self.cons_viol.data)
 
         reward += self.CheckTransition()
 
