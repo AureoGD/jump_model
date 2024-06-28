@@ -35,7 +35,7 @@ class JumpModel(object):
         self.joint_p_max = [0.2, 0 * pi / 180, 120 * pi / 180]
         self.joint_p_min = [-0.1, -55 * pi / 180, 60 * pi / 180]
 
-        nn_states_input_dim = 12
+        nn_states_input_dim = 13
         n_actions = 4
         alpha = 0.0005
         gamma = 0.99
@@ -46,20 +46,22 @@ class JumpModel(object):
         mem_size = 1024
         replace_target = 100
 
+        self.nn_input_dim = nn_states_input_dim
+
         # Predict horizon
         N = 10
 
         # sample time of the simulation
         sim_ts = 0.001
         # duration of one episode (seconds)
-        episode_duration = 2.5
+        episode_duration = 5
 
         self.dt = N * sim_ts
 
         # number of the current episode
         self.n_ep = 0
         # maximum episodes
-        self.max_ep = 1500
+        self.max_ep = 10000
         # number of episodes to save the model
         self.save_model_every = 10
         # number of the current step
@@ -71,6 +73,7 @@ class JumpModel(object):
 
         # vector of the last states
         self.last_states = np.zeros((nn_states_input_dim, 1))
+        self.teste_v = np.zeros((nn_states_input_dim + 1, 1))
         # vector of the actual state
         self.actual_state = np.zeros((nn_states_input_dim, 1))
 
@@ -132,7 +135,7 @@ class JumpModel(object):
         )
 
         self.weight_joint_e = 0.001
-        self.weight_base_dist = 1.15
+        self.weight_base_dist = 1.25
         self.weight_foot_dist = 1.25
         self.min_reward = -100
 
@@ -151,21 +154,43 @@ class JumpModel(object):
                 0.5 / 2.18,
                 0.5 / qd_max,
                 0.5 / qd_max,
+                1 / N,
             ]
         )
 
         self.beta = np.array(
-            [[0], [0], [0.5], [0.5], [0], [0], [0.5], [0.5], [0.5], [0.5], [0.5], [0.5]]
+            [
+                [0],
+                [0],
+                [0.5],
+                [0.5],
+                [0],
+                [0],
+                [0.5],
+                [0.5],
+                [0.5],
+                [0.5],
+                [0.5],
+                [0.5],
+                [0],
+            ]
         )
         print(self.alfa.shape)
         print(self.beta.shape)
 
+        self.transition_val = 0
+
     def action(self, states):
         # this method returns the choosed action
         self.actions[:] = np.roll(self.actions, 1)
-        normalized_states = self.normalize_states(states).reshape(
-            12,
+        # self.CheckTransition()
+
+        normalized_states = self.normalize_states(
+            np.append(states.reshape(12, 1), [[self.CheckTransition()]], axis=0)
+        ).reshape(
+            self.nn_input_dim,
         )
+
         self.actions[0] = self.agent.choose_action(normalized_states)
         # save the current states for learning in the future
         self.last_states = normalized_states
@@ -177,17 +202,17 @@ class JumpModel(object):
         reward = self.eval_reward()
         self.episode_reward += reward
         # check if is done
-        # ic(reward)
         done = self.done(reward)
+
         # update the agent memory
         self.agent.remember(
             self.last_states.reshape(
-                12,
+                self.nn_input_dim,
             ),
             self.actions[0],
             reward,
             self.actual_state.reshape(
-                12,
+                self.nn_input_dim,
             ),
             done,
         )
@@ -209,6 +234,7 @@ class JumpModel(object):
             * (sqrt(self.base_vel.data[1] ** 2) + sqrt(self.base_vel_a[1] ** 2))
             / 2
         )
+
         # ic(self.base_vel_a.shape, self.base_pos.data.shape)
         self.base_vel_a[:] = self.base_vel.data[:, -1]
 
@@ -228,17 +254,26 @@ class JumpModel(object):
         self.episode_foot_distance += foot_distance
         reward += self.weight_foot_dist * foot_distance
 
-        reward += -5 * (1 - self.cons_viol.data)
+        reward += -2.5 * (1 - self.cons_viol.data[0, 0])
 
-        reward += self.CheckTransition()
+        # ic(reward)
+
+        # trans_val = self.CheckTransition()
+
+        # ic(trans_val)
+
+        reward += -0.05 * self.transition_val
 
         # terminal condition: if the knee is near of the ground
-        if self.base_pos.data[1] - 0.285 * cos(self.joint_pos.data[0]) < 0.2:
+        if self.base_pos.data[1, 0] - 0.285 * cos(self.joint_pos.data[0, 0]) < 0.1:
             reward += self.min_reward
-        return reward[0, 0]
+
+        # ic(self.base_pos.data[1, 0] - 0.285 * cos(self.joint_pos.data[0, 0]))
+        # ic(reward)
+        return reward
 
     def done(self, reward):
-        # ic()
+        # ic(self.steps)
         # when finish the time of episode or the reward is too low
         if self.steps == self.max_steps or self.episode_reward < self.min_reward:
             # print("true")
@@ -252,17 +287,21 @@ class JumpModel(object):
         for i in range(len(self.states_list)):
             self.states_list[i].UpdateData(msg)
         # Update the self.actual_state
+        self.transition_val = self.CheckTransition()
         self.actual_state[0:2] = self.com_pos.data
         self.actual_state[2:4] = self.com_vel.data
         self.actual_state[4:6] = self.foot_pos.data
         self.actual_state[6:8] = self.foot_vel.data
         self.actual_state[8:10] = self.joint_pos.data
         self.actual_state[10:12] = self.joint_refl.data
+        self.actual_state[12] = self.transition_val
         self.actual_state[:] = self.normalize_states(self.actual_state)
 
     def normalize_states(self, states):
         normalized_states = np.clip(
-            np.matmul(self.alfa, states.reshape(12, 1)) + self.beta, 0, 1
+            np.matmul(self.alfa, states.reshape(self.nn_input_dim, 1)) + self.beta,
+            0,
+            1,
         )
         return normalized_states
 
@@ -274,7 +313,7 @@ class JumpModel(object):
         if count == 1 or count == 0:
             return 0
         else:
-            return -1 * count
+            return count
 
     def UpdateUtils(self):
         self.n_ep += 1

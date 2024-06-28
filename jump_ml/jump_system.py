@@ -137,7 +137,7 @@ class JumpSystem(object):
                     ],
                 )
             max_ep = self.robot_model.UpdateUtils()
-            time.sleep(0.5)
+            time.sleep(0.05)
             if not max_ep:
                 # call to unpause the simulation
                 self.request_reset.pause = False

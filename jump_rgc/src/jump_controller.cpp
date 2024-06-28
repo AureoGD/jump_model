@@ -256,7 +256,8 @@ void JumpController::PreUpdate(const gz::sim::UpdateInfo &_info,
     // call the PO using the response of the service
     this->const_retun = this->_JumpRGC.ChooseRGCPO(this->res.data());
 
-    // bool valor = this->_JumpRGC.ChooseRGCPO(3);
+    // bool valor = this->_JumpRGC.ChooseRGCPO(1);
+    // std::cout << valor << std::endl;
 
     // std::cout<<*this->StatesList[9]<< std::endl;
     // std::cout<<this->_JumpRGC.refHL<<std::endl;

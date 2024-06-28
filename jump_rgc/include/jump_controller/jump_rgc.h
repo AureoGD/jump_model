@@ -25,7 +25,9 @@ public:
 
     void ConfPO(int index);
 
-    bool SolvePo();
+    bool SolvePo(int npo);
+
+    void POMatrices(int npo, const Eigen::MatrixXd &mtx_A, const Eigen::MatrixXd &mtx_B);
 
 private:
     bool constraint = true;

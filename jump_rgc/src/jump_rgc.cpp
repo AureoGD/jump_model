@@ -116,8 +116,8 @@ JumpRGC::JumpRGC(JumpRobot *Robot, Eigen::Matrix<double, 2, 1> *_q, Eigen::Matri
     this->po[2].nc = 2; // number of constraints
 
     this->po[2].nx = 8;
-    this->po[2].N = 15;
-    this->po[2].M = 8;
+    this->po[2].N = 10;
+    this->po[2].M = 4;
     this->po[2].q_ref.resize(this->po[2].ny, 1);
     this->po[2].q_ref << -PI * 30 / 180, PI * 60 / 180;
     this->po[2].Qq.resize(this->po[2].ny, this->po[2].ny);
@@ -127,15 +127,15 @@ JumpRGC::JumpRGC(JumpRobot *Robot, Eigen::Matrix<double, 2, 1> *_q, Eigen::Matri
     this->po[2].Uu << 4.00, 0.00,
         0.00, 4.00;
 
-    this->po[2].Lcons.resize(2, 1);
+    this->po[2].Lcons.resize(this->po[2].nc, 1);
     this->po[2].Lcons << -100, -100;
-    this->po[2].Ucons.resize(2, 1);
+    this->po[2].Ucons.resize(this->po[2].nc, 1);
     this->po[2].Ucons << 100, 100;
 
     this->po[2].Vq_ref.resize(this->po[2].ny * this->po[2].N, 1);
-    this->po[2].MQq.resize(this->po[2].ny * this->po[0].N, this->po[2].nu * this->po[2].N);
+    this->po[2].MQq.resize(this->po[2].ny * this->po[2].N, this->po[2].nu * this->po[2].N);
     this->po[2].MQq.setZero();
-    this->po[2].MUu.resize(this->po[2].nu * this->po[0].M, this->po[2].nu * this->po[2].M);
+    this->po[2].MUu.resize(this->po[2].nu * this->po[2].M, this->po[2].nu * this->po[2].M);
     this->po[2].MUu.setZero();
     this->po[2].V_Lcons.resize(2 * this->po[2].N, 1); // number of variables constrained times predicte horizon
     this->po[2].V_Ucons.resize(2 * this->po[2].N, 1);
@@ -158,8 +158,8 @@ JumpRGC::JumpRGC(JumpRobot *Robot, Eigen::Matrix<double, 2, 1> *_q, Eigen::Matri
     this->po[3].nc = 2; // number of constraints
 
     this->po[3].nx = 8;
-    this->po[3].N = 15;
-    this->po[3].M = 8;
+    this->po[3].N = 10;
+    this->po[3].M = 4;
     this->po[3].q_ref.resize(this->po[3].ny, 1);
     this->po[3].q_ref << -PI * 60 / 180, PI * 120 / 180;
     this->po[3].Qq.resize(this->po[3].ny, this->po[3].ny);
@@ -175,9 +175,9 @@ JumpRGC::JumpRGC(JumpRobot *Robot, Eigen::Matrix<double, 2, 1> *_q, Eigen::Matri
     this->po[3].Ucons << 100, 100;
 
     this->po[3].Vq_ref.resize(this->po[3].ny * this->po[3].N, 1);
-    this->po[3].MQq.resize(this->po[3].ny * this->po[0].N, this->po[3].nu * this->po[3].N);
+    this->po[3].MQq.resize(this->po[3].ny * this->po[3].N, this->po[3].nu * this->po[3].N);
     this->po[3].MQq.setZero();
-    this->po[3].MUu.resize(this->po[3].nu * this->po[0].M, this->po[3].nu * this->po[3].M);
+    this->po[3].MUu.resize(this->po[3].nu * this->po[3].M, this->po[3].nu * this->po[3].M);
     this->po[3].MUu.setZero();
     this->po[3].V_Lcons.resize(2 * this->po[3].N, 1); // number of variables constrained times predicte horizon
     this->po[3].V_Ucons.resize(2 * this->po[3].N, 1);
@@ -247,7 +247,7 @@ bool JumpRGC::ChooseRGCPO(int npo)
         this->SetupFP(npo);
     }
 
-    if (!this->SolvePo())
+    if (!this->SolvePo(npo))
     {
         return 0;
     }
@@ -271,6 +271,9 @@ void JumpRGC::SetupSP(int npo)
     this->B_sp.block(0, 0, 2, 2) = -K1;
 
     this->Aa_sp.block(0, 0, 7, 7) = Eigen::MatrixXd::Identity(7, 7) + this->ts * this->A_sp;
+
+    this->Aa_sp.block(0, 7, 7, 2) = this->ts * this->B_sp;
+
     this->Ba_sp.block(0, 0, 7, 2) = this->ts * this->B_sp;
 
     Eigen::Matrix<double, 3, 2> Cf;
@@ -288,51 +291,19 @@ void JumpRGC::SetupSP(int npo)
     this->L_sp.block(0, 0, 2, 2) = -this->Kd * gamma_star;
 
     this->Phi.block(0, 0, 2, 9) = this->C_sp * this->Aa_sp;
+    this->P_cons.block(0, 0, 3, 9) = FC_max * this->L_sp;
 
-    this->P_cons.block(0, 0, 2, 9) = this->L_sp;
+    this->aux_mtx = this->C_sp * this->Ba_sp;
+    this->cons_aux = this->Kp * FC_max * Eigen::MatrixXd::Identity(2, 2);
 
-    for (int i = 1; i < this->po[npo].N; i++) // check i<N ?
-    {
-        this->Phi.block(2 * i, 0, 2, 9) = this->Phi.block(2 * (i - 1), 0, 2, 9) * this->Aa_sp;
-        this->P_cons.block(2 * i, 0, 2, 9) = this->P_cons.block(2 * (i - 1), 0, 2, 9) * this->Aa_sp;
-    }
+    this->POMatrices(npo, this->Aa_sp, this->Ba_sp);
 
-    for (int i = 0; i < this->po[npo].N; i++)
-    {
-        if (i == 0)
-        {
-            // std::cout << i << std::endl;
-            this->aux_mtx = this->C_sp * this->Ba_sp;
-            this->cons_aux = FC_max * this->Kp * Eigen::MatrixXd::Identity(2, 2);
-        }
-        else
-        {
-
-            this->aux_mtx = this->Phi.block(2 * (i - 1), 0, 2, 9) * this->Ba_sp;
-            this->cons_aux = FC_max * this->P_cons.block(2 * (i - 1), 0, 2, 9) * this->Ba_sp;
-        }
-
-        for (int j = 0; j < this->po[npo].M; j++)
-        {
-            if (2 * (i + j) <= this->po[npo].M * 2)
-            {
-                this->G.block((i + j) * 2, j * 2, 2, 2) = this->aux_mtx;
-                this->G_cons.block((i + j) * 3, j * 2, 3, 2) = this->cons_aux;
-            }
-        }
-    }
-    // std::cout << "heu" << std::endl;
     // update the states vector [dr, q, r, g, qa]
     this->x << _JumpRobot->com_vel,
         *(q),
         _JumpRobot->com_pos,
         this->g,
         *(qref);
-
-    //  update the MPC matrix
-    this->H = 2 * (this->G.transpose() * this->po[npo].MQq * this->G + this->po[npo].MUu);
-
-    this->F = 2 * (((this->Phi * this->x) - this->po[npo].Vq_ref).transpose()) * this->po[npo].MQq * this->G;
 }
 
 void JumpRGC::SetupFP(int npo)
@@ -345,42 +316,16 @@ void JumpRGC::SetupFP(int npo)
     this->B_fp.block(0, 0, 2, 2) = this->Kp * inv_m;
 
     this->Aa_fp.block(0, 0, 8, 8) = Eigen::MatrixXd::Identity(8, 8) + this->ts * this->A_fp;
-
+    this->Aa_fp.block(0, 8, 8, 2) = this->ts * this->B_fp;
     this->Ba_fp.block(0, 0, 8, 2) = this->ts * this->B_fp;
 
     this->Phi.block(0, 0, 2, 10) = this->C_fp * this->Aa_fp;
     this->P_cons.block(0, 0, 2, 10) = this->L_fp;
 
-    for (int i = 1; i < this->po[npo].N; i++) // check i<N ?
-    {
-        this->Phi.block(2 * i, 0, 2, 10) = this->Phi.block(2 * (i - 1), 0, 2, 10) * this->Aa_fp;
-        this->P_cons.block(2 * i, 0, 2, 10) = this->P_cons.block(2 * (i - 1), 0, 2, 10) * this->Aa_fp;
-    }
+    this->aux_mtx = this->C_fp * this->Ba_fp;
+    this->cons_aux = this->Kp * Eigen::MatrixXd::Identity(2, 2);
 
-    for (int i = 0; i < this->po[npo].N; i++)
-    {
-        if (i == 0)
-        {
-            this->aux_mtx = this->C_fp * this->Ba_fp;
-            this->cons_aux = this->Kp * Eigen::MatrixXd::Identity(2, 2);
-        }
-        else
-        {
-            this->aux_mtx = this->Phi.block(2 * (i - 1), 0, 2, 10) * this->Ba_fp;
-            this->cons_aux = this->P_cons.block(2 * (i - 1), 0, 2, 10) * this->Ba_fp;
-        }
-
-        for (int j = 0; j < this->po[npo].M; j++)
-        {
-            if (2 * (i + j) <= this->po[npo].M * 2)
-            {
-                this->G.block((i + j) * 2, j * 2, 2, 2) = this->aux_mtx;
-                this->G_cons.block((i + j) * 2, j * 2, 2, 2) = this->cons_aux;
-            }
-        }
-    }
-
-    // std::cout << this->G_cons << std::endl;
+    this->POMatrices(npo, this->Aa_fp, this->Ba_fp);
 
     // update the states vector [dq; q; r_Com_W; dz; g; qa]
 
@@ -390,18 +335,36 @@ void JumpRGC::SetupFP(int npo)
         (*_JumpRobot->db)(1),
         this->g,
         *(qref);
+}
 
-    //  update the MPC matrix
-    this->H = 2 * (this->G.transpose() * this->po[npo].MQq * this->G + this->po[npo].MUu);
+void JumpRGC::POMatrices(int npo, const Eigen::MatrixXd &mtx_A, const Eigen::MatrixXd &mtx_B)
+{
+    int sys_rows = mtx_A.rows();
 
-    this->F = 2 * (((this->Phi * this->x) - this->po[npo].Vq_ref).transpose()) * this->po[npo].MQq * this->G;
-
-    if (this->constraint)
+    for (int i = 0; i < this->po[npo].N; i++)
     {
-        this->lowerBound = this->po[npo].V_Lcons - this->P_cons * this->x;
-        this->upperBound = this->po[npo].V_Ucons - this->P_cons * this->x;
+        // std::cout << "i: " << i << std::endl;
+        if (i + 1 < this->po[npo].N)
+        {
+            this->Phi.block(this->po[npo].ny * (i + 1), 0, this->po[npo].ny, sys_rows) = this->Phi.block(this->po[npo].ny * i, 0, this->po[npo].ny, sys_rows) * mtx_A;
+            this->P_cons.block(this->po[npo].nc * (i + 1), 0, this->po[npo].nc, sys_rows) = this->P_cons.block(this->po[npo].nc * i, 0, this->po[npo].nc, sys_rows) * mtx_A;
+        }
+
+        if (i != 0)
+        {
+            this->aux_mtx = this->Phi.block(this->po[npo].ny * (i - 1), 0, this->po[npo].ny, sys_rows) * mtx_B;
+            this->cons_aux = this->P_cons.block(this->po[npo].nc * (i - 1), 0, this->po[npo].nc, sys_rows) * mtx_B;
+        }
+
+        int j = 0;
+
+        while ((j < this->po[npo].M) and (i + j < this->po[npo].N))
+        {
+            this->G.block((i + j) * this->po[npo].ny, j * this->po[npo].nu, this->po[npo].ny, this->po[npo].nu) = this->aux_mtx;
+            this->G_cons.block((i + j) * this->po[npo].nc, j * this->po[npo].nu, this->po[npo].nc, this->po[npo].nu) = this->cons_aux;
+            j++;
+        }
     }
-    // std::cout << this->G_cons << std::endl;
 }
 
 void JumpRGC::ClearPO()
@@ -436,7 +399,7 @@ void JumpRGC::ConfPO(int index)
     this->Phi.resize(this->po[index].ny * this->po[index].N, this->po[index].nx + this->po[index].ny);
     this->Phi.setZero();
 
-    this->P_cons.resize(this->po[index].ny * this->po[index].N, this->po[index].nx + this->po[index].ny);
+    this->P_cons.resize(this->po[index].nc * this->po[index].N, this->po[index].nx + this->po[index].ny);
     this->P_cons.setZero();
 
     this->H.resize(this->po[index].nu * this->po[index].M, this->po[index].nu * this->po[index].M);
@@ -476,8 +439,18 @@ void JumpRGC::ConfPO(int index)
         std::cout << "***************** PO Inicialization Problem ***************** " << std::endl;
 }
 
-bool JumpRGC::SolvePo()
+bool JumpRGC::SolvePo(int npo)
 {
+    this->H = 2 * (this->G.transpose() * this->po[npo].MQq * this->G + this->po[npo].MUu);
+
+    this->F = 2 * (((this->Phi * this->x) - this->po[npo].Vq_ref).transpose()) * this->po[npo].MQq * this->G;
+
+    if (this->constraint)
+    {
+        this->lowerBound = this->po[npo].V_Lcons - this->P_cons * this->x;
+        this->upperBound = this->po[npo].V_Ucons - this->P_cons * this->x;
+    }
+
     this->hessian_sparse = this->H.sparseView();
     this->solver.updateHessianMatrix(this->hessian_sparse);
     this->solver.updateGradient(this->F.transpose());
