@@ -36,6 +36,8 @@ public:
     Eigen::Matrix<double, 2, 1> foot_vel;
     Eigen::Matrix<double, 2, 1> base_vel;
     Eigen::Matrix<double, 2, 1> base_pos;
+    Eigen::Matrix<double, 2, 1> qU;
+    Eigen::Matrix<double, 2, 1> qL;
 
     double m_upr, m_lwr, m_base, m_total;
 };

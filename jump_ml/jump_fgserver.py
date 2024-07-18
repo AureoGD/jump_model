@@ -65,9 +65,9 @@ class FoxGloveServer(object):
 
     def VectorMsg_cb(self, r_msg: VectorMsg):
         with self.msg_lock:
-            # print(r_msg)
             self.new_msg_flag = True
             self.msg.CopyFrom(r_msg)
+            # print(self.msg)
 
     def entryPoint(self):
         asyncio.run(self.main())

@@ -21,10 +21,10 @@
 #include "jump_controller/jump_interface.h"
 #include "jump_controller/matrix.h"
 
+#include "jump_controller/simple_rgc.h"
+
 #include "jump/msgs/matrix.pb.h"
 #include "jump/msgs/ResquestAction.pb.h"
-
-#include "jump_controller/matrix.h"
 
 namespace hal = hal;
 
@@ -75,6 +75,9 @@ public:
 
 public:
     JumpRGC _JumpRGC;
+
+public:
+    SimpleRGC _simpleRGC;
 
 private:
     std::mutex JumpControllerMutex;
@@ -155,5 +158,7 @@ private:
     Eigen::Matrix<double, 2, 1> *StatesList[9];
     Eigen::Matrix<double, 2, 1> *NNStatesList[6];
     // std::vector<Eigen::Matrix<double, 2, 1>> *Stateslist[9];
+
+    int teste = 0;
 };
 #endif

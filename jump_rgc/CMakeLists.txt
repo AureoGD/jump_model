@@ -27,6 +27,7 @@ find_package(gz-common5 REQUIRED)
 find_package(gz-sensors8 REQUIRED)
 find_package(PythonLibs REQUIRED)
 find_package(gz-msgs10 REQUIRED)
+
 # find_package(jump_msgs-msgs REQUIRED)
 
 set(MSGS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../jump_msgs/build/proto) 
@@ -45,6 +46,15 @@ add_library(${PROJECT_NAME}
 		src/jump_robot_model.cpp
 		src/jump_rgc.cpp
 		src/jump_interface.cpp
+		src/simple_rgc.cpp
+		src/rgc.cpp
+		src/rgc1.cpp
+		src/rgc2.cpp
+		src/rgc3.cpp
+		src/rgc4.cpp
+		src/rgc5.cpp
+		src/rgc6.cpp
+		src/pred_control.cpp
 )
 
 target_link_directories(${PROJECT_NAME}

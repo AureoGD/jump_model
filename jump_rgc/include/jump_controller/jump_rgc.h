@@ -19,6 +19,8 @@ public:
 
     void SetupSP(int npo);
 
+    void SetupHSP(int npo);
+
     void SetupFP(int npo);
 
     void ClearPO();
@@ -47,6 +49,14 @@ private:
     Eigen::Matrix<double, 2, 9> C_sp = Eigen::Matrix<double, 2, 9>::Zero();
     Eigen::Matrix<double, 2, 9> L_sp = Eigen::Matrix<double, 2, 9>::Zero();
 
+    // SS matrices stance phase
+    Eigen::Matrix<double, 7, 7> A_hsp = Eigen::Matrix<double, 7, 7>::Zero();
+    Eigen::Matrix<double, 7, 2> B_hsp = Eigen::Matrix<double, 7, 2>::Zero();
+    Eigen::Matrix<double, 9, 9> Aa_hsp = Eigen::Matrix<double, 9, 9>::Zero();
+    Eigen::Matrix<double, 9, 2> Ba_hsp = Eigen::Matrix<double, 9, 2>::Zero();
+    Eigen::Matrix<double, 2, 9> C_hsp = Eigen::Matrix<double, 2, 9>::Zero();
+    Eigen::Matrix<double, 2, 9> L_hsp = Eigen::Matrix<double, 2, 9>::Zero();
+
     // SS matrices flight phase
     Eigen::Matrix<double, 8, 8> A_fp = Eigen::Matrix<double, 8, 8>::Zero();
     Eigen::Matrix<double, 8, 2> B_fp = Eigen::Matrix<double, 8, 2>::Zero();
@@ -69,7 +79,7 @@ private:
         Eigen::MatrixXd q_ref, Qq, Uu, Vq_ref, Lcons, Ucons, V_Lcons, V_Ucons, MQq, MUu;
     };
 
-    parameters_PO po[4];
+    parameters_PO po[5];
 
 public:
     Eigen::Matrix<double, 2, 1> refHL;

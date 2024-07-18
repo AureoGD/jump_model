@@ -38,6 +38,7 @@ JumpController::JumpController()
       jointPRef(Eigen::Matrix<double, 2, 1>::Zero()),
       basePos(Eigen::Matrix<double, 2, 1>::Zero()),
       baseVel(Eigen::Matrix<double, 2, 1>::Zero()),
+      _simpleRGC(&_JumpRobot, &jointPos, &jointVel, &jointPRef),
       _JumpRobot(&jointPos, &jointVel, &basePos, &baseVel),
       _JumpRGC(&_JumpRobot, &jointPos, &jointVel, &jointPRef)
 {
@@ -108,6 +109,7 @@ void JumpController::Configure(const gz::sim::Entity &_entity,
 
   this->llc.Configure(this->Kp, this->Kd);
   this->_JumpRGC.RGCConfig(1.0 / rate_lc, this->Kp, this->Kd);
+  this->_simpleRGC.RGCConfig(1.0 / rate_lc, this->Kp, this->Kd);
 
   // Configure MPC controller
 
@@ -153,7 +155,7 @@ void JumpController::Configure(const gz::sim::Entity &_entity,
   StatesList[6] = &jointPos;
   StatesList[7] = &jointVel;
   StatesList[8] = &Effort_cmd;
-  StatesList[9] = &this->_JumpRGC.refHL;
+  StatesList[9] = &(this->_JumpRGC.refHL);
   StatesList[10] = &jointPRef;
 
   NNStatesList[0] = &this->_JumpRobot.com_pos;
@@ -242,8 +244,15 @@ void JumpController::PreUpdate(const gz::sim::UpdateInfo &_info,
     if (this->states_type)
     {
       this->req.mutable_vec()->Clear();
-      for (int i = 0; i < 6; i++)
-        hal::WriteVector(*this->NNStatesList[i], this->req.mutable_vec());
+      // for (int i = 0; i < 6; i++)
+      //   hal::WriteVector(*this->NNStatesList[i], this->req.mutable_vec());
+
+      hal::WriteVector(this->_JumpRobot.com_pos, this->req.mutable_vec());
+      hal::WriteVector(this->_JumpRobot.com_vel, this->req.mutable_vec());
+      hal::WriteVector(this->_JumpRobot.foot_pos, this->req.mutable_vec());
+      hal::WriteVector(this->_JumpRobot.foot_vel, this->req.mutable_vec());
+      hal::WriteVector(jointPos, this->req.mutable_vec());
+      hal::WriteVector(jointPRef, this->req.mutable_vec());
     }
     else
     {
@@ -251,18 +260,43 @@ void JumpController::PreUpdate(const gz::sim::UpdateInfo &_info,
       this->req.clear_mtx();
     }
 
-    // call the service
-    bool executed = _Node.Request("/ChoseAction", this->req, 5, this->res, result);
-    // call the PO using the response of the service
-    this->const_retun = this->_JumpRGC.ChooseRGCPO(this->res.data());
+    // this->_simpleRGC.ChooseRGCPO(1);
 
-    // bool valor = this->_JumpRGC.ChooseRGCPO(1);
+    // call the service
+    // bool executed = _Node.Request("/ChoseAction", this->req, 5, this->res, result);
+    // // call the PO using the response of the service
+    // this->const_retun = this->_JumpRGC.ChooseRGCPO(this->res.data());
+    // std::cout << this->res.data() << std::endl;
+    // this->const_retun = this->_simpleRGC.ChooseRGCPO(this->res.data());
+
+    if (teste < 1000)
+    {
+      // this->jointPRef << -3.14 * 60 / 180, 3.14 * 120 / 180;
+      this->_simpleRGC.ChooseRGCPO(0);
+      // std::cout << "mode 1" << std::endl;
+    }
+    else if (teste >= 1000 && teste < 1250)
+    {
+      // this->jointPRef << -3.14 * 30 / 180, 3.14 * 60 / 180;
+      this->_simpleRGC.ChooseRGCPO(1);
+      // std::cout << "mode 0 " << std::endl;
+    }
+    else if (teste >= 1250 && teste < 1500)
+    {
+      // this->jointPRef << -3.14 * 30 / 180, 3.14 * 60 / 180;
+      this->_simpleRGC.ChooseRGCPO(5);
+      // std::cout << "mode 4 " << std::endl;
+    }
+    else
+      teste = 1000;
+    std::cout << teste << std::endl;
+    teste++;
     // std::cout << valor << std::endl;
 
-    // std::cout<<*this->StatesList[9]<< std::endl;
-    // std::cout<<this->_JumpRGC.refHL<<std::endl;
-    // std::cout<<this->jointVel<<std::endl;
-    // save the current time for the next interation
+    // std::cout << *this->StatesList[9] << std::endl;
+    // std::cout << this->_JumpRGC.refHL << std::endl;
+    //  std::cout<<this->jointVel<<std::endl;
+    //  save the current time for the next interation
     this->lastUpdateTime_rgc = _info.simTime;
   }
 
@@ -325,10 +359,28 @@ void JumpController::PostUpdate(const gz::sim::UpdateInfo &_info,
 
   // Prepare the ModelStatesMsg with the new info
   this->ModelStatesMsg.Clear();
-  for (int i = 0; i <= 10; i++)
-    hal::WriteVector(*this->StatesList[i], &this->ModelStatesMsg);
+
+  // for (int i = 0; i <= 10; i++)
+  // {
+  //  hal::WriteVector(*this->StatesList[i], &this->ModelStatesMsg);
+  //  std::cout << *this->StatesList[i] << std::endl;
+  // }
+
+  // brute force
+  hal::WriteVector(basePos, &this->ModelStatesMsg);
+  hal::WriteVector(baseVel, &this->ModelStatesMsg);
+  hal::WriteVector(this->_JumpRobot.com_pos, &this->ModelStatesMsg);
+  hal::WriteVector(this->_JumpRobot.com_vel, &this->ModelStatesMsg);
+  hal::WriteVector(this->_JumpRobot.foot_pos, &this->ModelStatesMsg);
+  hal::WriteVector(this->_JumpRobot.foot_vel, &this->ModelStatesMsg);
+  hal::WriteVector(jointPos, &this->ModelStatesMsg);
+  hal::WriteVector(jointVel, &this->ModelStatesMsg);
+  hal::WriteVector(Effort_cmd, &this->ModelStatesMsg);
+  hal::WriteVector(this->_simpleRGC.qhl, &this->ModelStatesMsg);
+  hal::WriteVector(jointPRef, &this->ModelStatesMsg);
   this->ModelStatesMsg.add_data(static_cast<double>(this->const_retun));
   this->ModelStatesMsg.add_data(static_cast<double>(this->touch_st));
+
   // Publish the roobot state msg
   this->modelSTPub->Publish(this->ModelStatesMsg);
 }
@@ -337,8 +389,24 @@ bool JumpController::srvEcho(const gz::msgs::Boolean &_req,
                              jump::msgs::VectorMsg &_rep)
 {
   _rep.Clear();
-  for (int i = 0; i <= 10; i++)
-    hal::WriteVector(*this->StatesList[i], &_rep);
+
+  // for (int i = 0; i <= 10; i++)
+  //   hal::WriteVector(*this->StatesList[i], &_rep);
+  // _rep.add_data(static_cast<double>(this->const_retun));
+  // _rep.add_data(static_cast<double>(this->touch_st));
+
+  // brute force
+  hal::WriteVector(basePos, &_rep);
+  hal::WriteVector(baseVel, &_rep);
+  hal::WriteVector(this->_JumpRobot.com_pos, &_rep);
+  hal::WriteVector(this->_JumpRobot.com_vel, &_rep);
+  hal::WriteVector(this->_JumpRobot.foot_pos, &_rep);
+  hal::WriteVector(this->_JumpRobot.foot_vel, &_rep);
+  hal::WriteVector(jointPos, &_rep);
+  hal::WriteVector(jointVel, &_rep);
+  hal::WriteVector(Effort_cmd, &_rep);
+  hal::WriteVector(this->_JumpRGC.refHL, &_rep);
+  hal::WriteVector(jointPRef, &_rep);
   _rep.add_data(static_cast<double>(this->const_retun));
   _rep.add_data(static_cast<double>(this->touch_st));
   return true;

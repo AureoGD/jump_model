@@ -5,14 +5,22 @@ JumpRGC::JumpRGC(JumpRobot *Robot, Eigen::Matrix<double, 2, 1> *_q, Eigen::Matri
 {
     this->last_po = -1;
     this->g = -9.81;
+
     // Initializing constants stance phase
     this->A_sp.block(4, 5, 2, 2) = Eigen::MatrixXd::Identity(2, 2);
     this->A_sp(1, 6) = 1.0;
     this->C_sp.block(0, 2, 2, 2) = Eigen::MatrixXd::Identity(2, 2);
     this->Aa_sp.block(7, 7, 2, 2) = Eigen::MatrixXd::Identity(2, 2);
     this->Ba_sp.block(7, 0, 2, 2) = Eigen::MatrixXd::Identity(2, 2);
-    // Initilizing constants flight phase
 
+    // Inicializing constants
+    this->A_hsp.block(4, 5, 2, 2) = Eigen::MatrixXd::Identity(2, 2);
+    this->A_hsp(1, 6) = 1.0;
+    this->C_hsp.block(0, 0, 2, 2) = Eigen::MatrixXd::Identity(2, 2);
+    this->Aa_hsp.block(7, 7, 2, 2) = Eigen::MatrixXd::Identity(2, 2);
+    this->Ba_hsp.block(7, 0, 2, 2) = Eigen::MatrixXd::Identity(2, 2);
+
+    // Initilizing constants flight phase
     this->A_fp.block(2, 0, 2, 2) = Eigen::MatrixXd::Identity(2, 2);
     this->A_fp(5, 6) = 1.0;
     this->A_fp(6, 7) = -1.0;
@@ -90,9 +98,9 @@ JumpRGC::JumpRGC(JumpRobot *Robot, Eigen::Matrix<double, 2, 1> *_q, Eigen::Matri
     this->po[1].Ucons << 0, OsqpEigen::INFTY, -this->g * 5 * _JumpRobot->m_total;
 
     this->po[1].Vq_ref.resize(this->po[1].ny * this->po[1].N, 1);
-    this->po[1].MQq.resize(this->po[1].ny * this->po[0].N, this->po[1].nu * this->po[1].N);
+    this->po[1].MQq.resize(this->po[1].ny * this->po[1].N, this->po[1].nu * this->po[1].N);
     this->po[1].MQq.setZero();
-    this->po[1].MUu.resize(this->po[1].nu * this->po[0].M, this->po[1].nu * this->po[1].M);
+    this->po[1].MUu.resize(this->po[1].nu * this->po[1].M, this->po[1].nu * this->po[1].M);
     this->po[1].MUu.setZero();
 
     this->po[1].V_Lcons.resize(3 * this->po[1].N, 1); // number of variables constrained times predicte horizon
@@ -124,8 +132,8 @@ JumpRGC::JumpRGC(JumpRobot *Robot, Eigen::Matrix<double, 2, 1> *_q, Eigen::Matri
     this->po[2].Qq << 0.15, 0.00,
         0.00, 0.15;
     this->po[2].Uu.resize(this->po[2].ny, this->po[2].ny);
-    this->po[2].Uu << 4.00, 0.00,
-        0.00, 4.00;
+    this->po[2].Uu << 1.00, 0.00,
+        0.00, 1.00;
 
     this->po[2].Lcons.resize(this->po[2].nc, 1);
     this->po[2].Lcons << -100, -100;
@@ -161,7 +169,7 @@ JumpRGC::JumpRGC(JumpRobot *Robot, Eigen::Matrix<double, 2, 1> *_q, Eigen::Matri
     this->po[3].N = 10;
     this->po[3].M = 4;
     this->po[3].q_ref.resize(this->po[3].ny, 1);
-    this->po[3].q_ref << -PI * 60 / 180, PI * 120 / 180;
+    this->po[3].q_ref << -PI * 30 / 180, PI * 120 / 180;
     this->po[3].Qq.resize(this->po[3].ny, this->po[3].ny);
     this->po[3].Qq << 0.15, 0.00,
         0.00, 0.15;
@@ -193,6 +201,49 @@ JumpRGC::JumpRGC(JumpRobot *Robot, Eigen::Matrix<double, 2, 1> *_q, Eigen::Matri
         this->po[3].V_Lcons.block(i * this->po[3].nc, 0, 2, 1) = this->po[3].Lcons;
         this->po[3].V_Ucons.block(i * this->po[3].nc, 0, 2, 1) = this->po[3].Ucons;
     }
+
+    // ############################# PO4 ######################################
+    this->po[4].ny = 2; // create a "global variable"
+    this->po[4].nu = 2;
+    this->po[4].nc = 3; // number of constraints
+
+    this->po[4].nx = 7;
+    this->po[4].N = 10;
+    this->po[4].M = 6;
+    this->po[4].q_ref.resize(this->po[4].ny, 1);
+    this->po[4].q_ref << 0.5, 1;
+    this->po[4].Qq.resize(this->po[4].ny, this->po[4].ny);
+    this->po[4].Qq << 0.15, 0.00,
+        0.00, 0.15;
+    this->po[4].Uu.resize(this->po[4].ny, this->po[4].ny);
+    this->po[4].Uu << 4.00, 0.00,
+        0.00, 4.00;
+
+    this->po[4].Lcons.resize(3, 1);
+    this->po[4].Lcons << -OsqpEigen::INFTY, 0, -this->g * 0.25 * _JumpRobot->m_total;
+    this->po[4].Ucons.resize(3, 1);
+    this->po[4].Ucons << 0, OsqpEigen::INFTY, -this->g * 5 * _JumpRobot->m_total;
+
+    this->po[4].Vq_ref.resize(this->po[4].ny * this->po[4].N, 1);
+    this->po[4].MQq.resize(this->po[4].ny * this->po[4].N, this->po[4].nu * this->po[4].N);
+    this->po[4].MQq.setZero();
+    this->po[4].MUu.resize(this->po[4].nu * this->po[4].M, this->po[4].nu * this->po[4].M);
+    this->po[4].MUu.setZero();
+
+    this->po[4].V_Lcons.resize(3 * this->po[4].N, 1); // number of variables constrained times predicte horizon
+    this->po[4].V_Ucons.resize(3 * this->po[4].N, 1);
+
+    for (int i = 0; i < this->po[4].N; i++)
+    {
+        this->po[4].Vq_ref.block(i * this->po[4].ny, 0, this->po[4].ny, 1) = this->po[4].q_ref;
+        this->po[4].MQq.block(i * this->po[4].ny, i * this->po[4].ny, this->po[4].ny, this->po[4].ny) = this->po[4].Qq;
+        if (i < this->po[4].M)
+        {
+            this->po[4].MUu.block(i * this->po[4].nu, i * this->po[4].nu, this->po[4].nu, this->po[4].nu) = this->po[4].Uu;
+        }
+        this->po[4].V_Lcons.block(i * this->po[4].nc, 0, 3, 1) = this->po[4].Lcons;
+        this->po[4].V_Ucons.block(i * this->po[4].nc, 0, 3, 1) = this->po[4].Ucons;
+    }
 }
 
 JumpRGC::~JumpRGC()
@@ -210,6 +261,11 @@ void JumpRGC::RGCConfig(double _ts, double _Kp, double _Kd)
 
     this->L_sp.block(0, 2, 2, 2) = -_Kp * Eigen::MatrixXd::Identity(2, 2);
     this->L_sp.block(0, 7, 2, 2) = _Kp * Eigen::MatrixXd::Identity(2, 2);
+
+    // H stance phase L matrix
+
+    this->L_hsp.block(0, 2, 2, 2) = -_Kp * Eigen::MatrixXd::Identity(2, 2);
+    this->L_hsp.block(0, 7, 2, 2) = _Kp * Eigen::MatrixXd::Identity(2, 2);
 
     // Flight phase L matrix
     this->L_fp.block(0, 0, 2, 2) = -_Kd * Eigen::MatrixXd::Identity(2, 2);
@@ -245,6 +301,11 @@ bool JumpRGC::ChooseRGCPO(int npo)
     else if (npo == 3)
     {
         this->SetupFP(npo);
+    }
+
+    else if (npo == 4)
+    {
+        this->SetupHSP(npo);
     }
 
     if (!this->SolvePo(npo))
@@ -297,6 +358,54 @@ void JumpRGC::SetupSP(int npo)
     this->cons_aux = this->Kp * FC_max * Eigen::MatrixXd::Identity(2, 2);
 
     this->POMatrices(npo, this->Aa_sp, this->Ba_sp);
+
+    // update the states vector [dr, q, r, g, qa]
+    this->x << _JumpRobot->com_vel,
+        *(q),
+        _JumpRobot->com_pos,
+        this->g,
+        *(qref);
+}
+
+void JumpRGC::SetupHSP(int npo)
+{
+
+    auto gamma_star = (_JumpRobot->J_com - _JumpRobot->J_foot).inverse();
+    auto inv_J = (_JumpRobot->J_foot.inverse()).transpose();
+    auto K1 = this->Kp * inv_J / _JumpRobot->m_total;
+    auto K2 = this->Kd * gamma_star / _JumpRobot->m_total;
+    this->A_hsp.block(0, 0, 2, 2) = K2;         // matlab A(1:2,1:2) = K2;
+    this->A_hsp.block(0, 2, 2, 2) = K1;         // matlab A(1:2,3:4) = K1;
+    this->A_hsp.block(2, 0, 2, 2) = gamma_star; // matlab A(3:4,1:2);
+    this->B_hsp.block(0, 0, 2, 2) = -K1;
+
+    this->Aa_hsp.block(0, 0, 7, 7) = Eigen::MatrixXd::Identity(7, 7) + this->ts * this->A_hsp;
+
+    this->Aa_hsp.block(0, 7, 7, 2) = this->ts * this->B_hsp;
+
+    this->Ba_hsp.block(0, 0, 7, 2) = this->ts * this->B_hsp;
+
+    Eigen::Matrix<double, 3, 2> Cf;
+    Eigen::Matrix<double, 2, 1> n1;
+    Eigen::Matrix<double, 2, 1> t1;
+    // Eigen::Matrix<double, 3, 2> Cf;
+    n1 << 0, 1;
+    t1 << 1, 0;
+    double a_coef = 0.9 / sqrt(2);
+
+    Cf << (-a_coef * n1 + t1).transpose(), (a_coef * n1 + t1).transpose(), n1.transpose();
+
+    auto FC_max = -Cf * inv_J;
+
+    this->L_hsp.block(0, 0, 2, 2) = -this->Kd * gamma_star;
+
+    this->Phi.block(0, 0, 2, 9) = this->C_hsp * this->Aa_hsp;
+    this->P_cons.block(0, 0, 3, 9) = FC_max * this->L_hsp;
+
+    this->aux_mtx = this->C_hsp * this->Ba_hsp;
+    this->cons_aux = this->Kp * FC_max * Eigen::MatrixXd::Identity(2, 2);
+
+    this->POMatrices(npo, this->Aa_hsp, this->Ba_hsp);
 
     // update the states vector [dr, q, r, g, qa]
     this->x << _JumpRobot->com_vel,

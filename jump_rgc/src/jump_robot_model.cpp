@@ -18,6 +18,9 @@ JumpRobot::JumpRobot(Eigen::Matrix<double, 2, 1> *_q, Eigen::Matrix<double, 2, 1
     this->m_lwr = 1.5;
 
     this->m_total = this->m_lwr + this->m_upr + this->m_base;
+
+    this->qU << 1.57, 2.18;
+    this->qL << -1.57, -2.18;
 }
 
 JumpRobot::~JumpRobot()
