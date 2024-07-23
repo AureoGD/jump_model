@@ -32,11 +32,11 @@ class JumpModel(object):
         # TODO import this infos from the SDF file
         self.joint_name = ["base", "hfe", "kfe"]
         self.joint_type = ["prismatic", "revolute", "revolute"]
-        self.joint_p_max = [0.2, 0 * pi / 180, 120 * pi / 180]
-        self.joint_p_min = [-0.1, -55 * pi / 180, 60 * pi / 180]
+        self.joint_p_max = [0.9, 0 * pi / 180, 120 * pi / 180]
+        self.joint_p_min = [0.5, -55 * pi / 180, 60 * pi / 180]
 
         nn_states_input_dim = 13
-        n_actions = 4
+        n_actions = 6
         alpha = 0.0005
         gamma = 0.99
         epsilon = 1.0
@@ -94,6 +94,7 @@ class JumpModel(object):
         self.joint_refl = CreatVectorData(2, 20)  # 20 21
         self.cons_viol = CreatVectorData(1, 22)  # 22
         self.foot_con = CreatVectorData(1, 23)  # 23
+        self.npo = CreatVectorData(1, 24)  # 24
 
         self.states_list = [
             self.base_pos,
@@ -109,6 +110,7 @@ class JumpModel(object):
             self.joint_refl,
             self.cons_viol,
             self.foot_con,
+            self.npo,
         ]
 
         self.base_vel_a = np.array(self.base_vel.data.shape)
@@ -134,10 +136,16 @@ class JumpModel(object):
             chkpt_dir=self.utils.save_path,
         )
 
-        self.weight_joint_e = 0.001
-        self.weight_base_dist = 1.25
-        self.weight_foot_dist = 1.25
-        self.min_reward = -100
+        self.weight_joint_e = 0.005
+        self.weight_base_dist = 2.35
+        self.weight_foot_dist = 2.25
+        self.weight_jump = 2.75
+        self.min_reward = -50
+
+        self.time_jump = 0
+        self.delta_jump = 0
+
+        self.first_landing = 0
 
         qd_max = 100
         self.alfa = np.diagflat(
@@ -200,7 +208,11 @@ class JumpModel(object):
     def learning(self):
         # evaluate the reward of the last choosed action
         reward = self.eval_reward()
-        self.episode_reward += reward
+        if self.reward <= self.min_reward:
+            self.episode_reward += reward
+        else:
+            self.episode_reward = reward
+
         # check if is done
         done = self.done(reward)
 
@@ -254,7 +266,18 @@ class JumpModel(object):
         self.episode_foot_distance += foot_distance
         reward += self.weight_foot_dist * foot_distance
 
-        reward += -2.5 * (1 - self.cons_viol.data[0, 0])
+        reward += -0.5 * (1 - self.cons_viol.data[0, 0])
+
+        if self.foot_con and not self.first_landing:
+            self.first_landing = 1
+
+        if self.first_landing and not self.foot_con:
+            self.time_jump = time.time()
+
+        if self.first_landing and self.foot_con and self.time_jump != 0:
+            self.delta_jump = time.time() - self.time_jump
+            self.time_jump = 0
+            reward += self.delta_jump * self.weight_jump
 
         # ic(reward)
 
@@ -262,20 +285,21 @@ class JumpModel(object):
 
         # ic(trans_val)
 
-        reward += -0.05 * self.transition_val
+        reward += -0.005 * self.transition_val
 
         # terminal condition: if the knee is near of the ground
-        if self.base_pos.data[1, 0] - 0.285 * cos(self.joint_pos.data[0, 0]) < 0.1:
-            reward += self.min_reward
+        if (
+            self.base_pos.data[1, 0] - 0.285 * cos(self.joint_pos.data[0, 0]) - 0.125
+            < 0.1
+        ):
+            reward = self.min_reward
 
-        # ic(self.base_pos.data[1, 0] - 0.285 * cos(self.joint_pos.data[0, 0]))
-        # ic(reward)
         return reward
 
     def done(self, reward):
         # ic(self.steps)
         # when finish the time of episode or the reward is too low
-        if self.steps == self.max_steps or self.episode_reward < self.min_reward:
+        if self.steps == self.max_steps or self.episode_reward <= self.min_reward:
             # print("true")
             return True
 

@@ -76,10 +76,10 @@ void SimpleRGC::RGCConfig(double _ts, double _Kp, double _Kd)
     // PO 2
 
     Ub.resize(4, 1);
-    Ub << _JumpRobot->qU, 75, 75;
+    Ub << _JumpRobot->qU, 150, 150;
 
     Lb.resize(4, 1);
-    Lb << _JumpRobot->qL, -75, -75;
+    Lb << _JumpRobot->qL, -150, -150;
 
     this->ClearPO();
 
@@ -130,6 +130,13 @@ void SimpleRGC::RGCConfig(double _ts, double _Kp, double _Kd)
 
     // PO 5
     this->ClearPO();
+
+    Ub.resize(4, 1);
+    Ub << _JumpRobot->qU, 75, 75;
+
+    Lb.resize(4, 1);
+    Lb << _JumpRobot->qL, -75, -75;
+
     this->po[5]->SetInternalVariables();
     this->po[5]->SetConstants(_ts, 8, 4, _Kp, _Kd);
     this->po[5]->UpdateModelConstants();
@@ -154,7 +161,7 @@ bool SimpleRGC::ChooseRGCPO(int npo)
         this->last_po = npo;
     }
 
-    if (npo == 0 || npo == 1 || npo == 4)
+    if (npo == 0 || npo == 1 || npo == 4 || npo == 5)
     {
         // update the states vector |dr, q, r, g, qa|
         this->x << _JumpRobot->com_vel, *(q), _JumpRobot->com_pos, this->g, *(qr);
@@ -213,7 +220,7 @@ void SimpleRGC::ConfPO(int index)
 
     // then, configure the solver
 
-    this->solver.settings()->setVerbosity(false);
+    this->solver.settings()->setVerbosity(0);
 
     this->solver.data()->setNumberOfVariables(this->po[index]->nu * this->po[index]->M);
 
@@ -257,11 +264,18 @@ bool SimpleRGC::SolvePO()
     {
         this->linearMatrix = this->Ain.sparseView();
         this->solver.updateLinearConstraintsMatrix(this->linearMatrix);
-        solver.updateBounds(this->Lb, this->Ub);
+        this->solver.updateBounds(this->Lb, this->Ub);
     }
 
-    if (solver.solveProblem() == OsqpEigen::ErrorExitFlag::NoError)
+    if (this->solver.solveProblem() == OsqpEigen::ErrorExitFlag::NoError)
     {
+        if (this->solver.getStatus() != OsqpEigen::Status::Solved)
+        {
+            if (this->debug)
+                std::cout << "Not solved" << std::endl;
+            return 0;
+        }
+
         this->QPSolution = this->solver.getSolution();
         this->delta_qref = this->QPSolution.block(0, 0, 2, 1);
         if (this->debug)

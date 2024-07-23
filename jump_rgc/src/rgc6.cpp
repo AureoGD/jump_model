@@ -22,12 +22,12 @@ RGC6::RGC6(JumpRobot *Robot) : RobotKin(Robot)
     this->Ca.setZero();
 
     // q and tau
-    // this->C_cons.resize(4, 9);
-    // this->C_cons.setZero();
+    this->C_cons.resize(4, 9);
+    this->C_cons.setZero();
 
     // // q and force
-    this->C_cons.resize(5, 9);
-    this->C_cons.setZero();
+    // this->C_cons.resize(5, 9);
+    // this->C_cons.setZero();
 
     this->qhl.resize(2, 1);
     this->qhl.setZero();
@@ -92,8 +92,8 @@ void RGC6::UpdateModelConstants()
         C_cons =  |GS -Kp 0 0 Kp|
     */
 
-    // this->C_cons.block(2, 2, 2, 2) = -this->Kp * Eigen::MatrixXd::Identity(2, 2);
-    // this->C_cons.block(2, 7, 2, 2) = this->Kp * Eigen::MatrixXd::Identity(2, 2);
+    this->C_cons.block(2, 2, 2, 2) = -this->Kp * Eigen::MatrixXd::Identity(2, 2);
+    this->C_cons.block(2, 7, 2, 2) = this->Kp * Eigen::MatrixXd::Identity(2, 2);
 
     /*
         3ª cons: GRF
@@ -103,21 +103,21 @@ void RGC6::UpdateModelConstants()
 
         C_cons =  -GRF * Jci' * C_cons_aux
     */
-    this->C_cons_aux.resize(2, 9);
-    this->C_cons_aux.setZero();
-    this->C_cons_aux.block(0, 2, 2, 2) = -this->Kp * Eigen::MatrixXd::Identity(2, 2);
-    this->C_cons_aux.block(0, 7, 2, 2) = this->Kp * Eigen::MatrixXd::Identity(2, 2);
+    // this->C_cons_aux.resize(2, 9);
+    // this->C_cons_aux.setZero();
+    // this->C_cons_aux.block(0, 2, 2, 2) = -this->Kp * Eigen::MatrixXd::Identity(2, 2);
+    // this->C_cons_aux.block(0, 7, 2, 2) = this->Kp * Eigen::MatrixXd::Identity(2, 2);
 
-    this->GRF_mtx.resize(3, 2);
+    // this->GRF_mtx.resize(3, 2);
 
-    this->n1 << 0, 1;
-    this->t1 << 1, 0;
+    // this->n1 << 0, 1;
+    // this->t1 << 1, 0;
 
-    double a_coef = 0.9 / sqrt(2);
+    // double a_coef = 0.9 / sqrt(2);
 
-    this->GRF_mtx << (-a_coef * this->n1 + this->t1).transpose(),
-        (a_coef * this->n1 + this->t1).transpose(),
-        this->n1.transpose();
+    // this->GRF_mtx << (-a_coef * this->n1 + this->t1).transpose(),
+    //     (a_coef * this->n1 + this->t1).transpose(),
+    //     this->n1.transpose();
 
     return;
 }
@@ -172,9 +172,9 @@ void RGC6::UpdateDynamicModel()
     this->C_aux.block(0, 0, 2, 2) = gamma_star;
 
     // tau constraints
-    // this->C_cons.block(2, 0, 2, 2) = -this->Kd * gamma_star;
+    this->C_cons.block(2, 0, 2, 2) = -this->Kd * gamma_star;
 
     // GRF constraints
-    this->C_cons_aux.block(0, 0, 2, 2) = -this->Kd * gamma_star;
-    this->C_cons.block(2, 0, 3, 9) = -this->GRF_mtx * inv_J * this->C_cons_aux;
+    // this->C_cons_aux.block(0, 0, 2, 2) = -this->Kd * gamma_star;
+    // this->C_cons.block(2, 0, 3, 9) = -this->GRF_mtx * inv_J * this->C_cons_aux;
 }

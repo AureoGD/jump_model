@@ -23,6 +23,8 @@
 #include "gz/sim/components/ParentLinkName.hh"
 #include "gz/sim/components/Pose.hh"
 #include "gz/sim/components/JointType.hh"
+#include "gz/sim/components/JointPositionReset.hh"
+
 #include "gz/sim/Util.hh"
 #include "gz/sim/Model.hh"
 #include <gz/math/PID.hh>
@@ -67,9 +69,14 @@ void JumpController::Configure(const gz::sim::Entity &_entity,
           << "entity. Failed to initialize." << std::endl;
     return;
   }
+  // TODO import from de sdf file
+  Eigen::VectorXd q0;
+  q0.resize(3, 1);
+  q0 << 0.5, -3.14 * 60 / 180, 3.14 * 120 / 180;
 
   if (_sdf->HasElement("joint_name"))
   {
+    int i = 0;
     auto elem = _sdf->FindElement("joint_name");
     while (elem)
     {
@@ -80,6 +87,8 @@ void JumpController::Configure(const gz::sim::Entity &_entity,
       if (jointEntity != gz::sim::v8::kNullEntity)
       {
         this->CreateComponents(_ecm, jointEntity, jointName);
+        _ecm.SetComponentData<gz::sim::v8::components::JointPositionReset>(jointEntity, {q0(i)});
+        i++;
       }
       else
       {
@@ -94,8 +103,6 @@ void JumpController::Configure(const gz::sim::Entity &_entity,
   {
     gzerr << "Atribute 'joint_name' was not found in the SDF file .\n";
   }
-
-  // TODO - create a function to positioning the model at a inicial position
 
   // Configure Low Level Controller - llc
 
@@ -260,43 +267,30 @@ void JumpController::PreUpdate(const gz::sim::UpdateInfo &_info,
       this->req.clear_mtx();
     }
 
-    // this->_simpleRGC.ChooseRGCPO(1);
-
     // call the service
-    // bool executed = _Node.Request("/ChoseAction", this->req, 5, this->res, result);
-    // // call the PO using the response of the service
-    // this->const_retun = this->_JumpRGC.ChooseRGCPO(this->res.data());
-    // std::cout << this->res.data() << std::endl;
-    // this->const_retun = this->_simpleRGC.ChooseRGCPO(this->res.data());
+    bool executed = _Node.Request("/ChoseAction", this->req, 5, this->res, result);
+    // call the PO using the response of the service
+    this->const_retun = this->_simpleRGC.ChooseRGCPO(this->res.data());
+    this->npo = this->res.data();
 
-    if (teste < 1000)
-    {
-      // this->jointPRef << -3.14 * 60 / 180, 3.14 * 120 / 180;
-      this->_simpleRGC.ChooseRGCPO(0);
-      // std::cout << "mode 1" << std::endl;
-    }
-    else if (teste >= 1000 && teste < 1250)
-    {
-      // this->jointPRef << -3.14 * 30 / 180, 3.14 * 60 / 180;
-      this->_simpleRGC.ChooseRGCPO(1);
-      // std::cout << "mode 0 " << std::endl;
-    }
-    else if (teste >= 1250 && teste < 1500)
-    {
-      // this->jointPRef << -3.14 * 30 / 180, 3.14 * 60 / 180;
-      this->_simpleRGC.ChooseRGCPO(5);
-      // std::cout << "mode 4 " << std::endl;
-    }
-    else
-      teste = 1000;
-    std::cout << teste << std::endl;
-    teste++;
-    // std::cout << valor << std::endl;
+    // if (teste < 1000)
+    // {
+    //   this->_simpleRGC.ChooseRGCPO(0);
+    // }
+    // else if (teste >= 1000 && teste < 1250)
+    // {
+    //   this->_simpleRGC.ChooseRGCPO(1);
+    // }
+    // else if (teste >= 1250 && teste < 1500)
+    // {
+    //   this->_simpleRGC.ChooseRGCPO(4);
+    // }
+    // else
+    //   teste = 1000;
+    // teste++;
+    // self.base_pos.data[1, 0] - 0.285 * cos(self.joint_pos.data[0, 0])
+    // std::cout << basePos(1, 0) - 0.285 * cos(jointPos(0, 0)) - 0.125 << std::endl;
 
-    // std::cout << *this->StatesList[9] << std::endl;
-    // std::cout << this->_JumpRGC.refHL << std::endl;
-    //  std::cout<<this->jointVel<<std::endl;
-    //  save the current time for the next interation
     this->lastUpdateTime_rgc = _info.simTime;
   }
 
@@ -333,9 +327,8 @@ void JumpController::ReadSensors(gz::sim::EntityComponentManager &_ecm)
 
     if (index == 0)
     {
-      // TODO - edit the SDF file
       this->basePos[0] = 0;
-      this->basePos[1] = 0.75 + jointPositions->Data()[0];
+      this->basePos[1] = jointPositions->Data()[0];
 
       this->baseVel[0] = 0;
       this->baseVel[1] = jointVelocity->Data()[0];
@@ -380,6 +373,7 @@ void JumpController::PostUpdate(const gz::sim::UpdateInfo &_info,
   hal::WriteVector(jointPRef, &this->ModelStatesMsg);
   this->ModelStatesMsg.add_data(static_cast<double>(this->const_retun));
   this->ModelStatesMsg.add_data(static_cast<double>(this->touch_st));
+  this->ModelStatesMsg.add_data(static_cast<double>(this->npo));
 
   // Publish the roobot state msg
   this->modelSTPub->Publish(this->ModelStatesMsg);
@@ -409,6 +403,7 @@ bool JumpController::srvEcho(const gz::msgs::Boolean &_req,
   hal::WriteVector(jointPRef, &_rep);
   _rep.add_data(static_cast<double>(this->const_retun));
   _rep.add_data(static_cast<double>(this->touch_st));
+  _rep.add_data(static_cast<double>(this->npo));
   return true;
 }
 

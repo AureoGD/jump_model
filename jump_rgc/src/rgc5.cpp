@@ -52,7 +52,7 @@ void RGC5::UpdateModelConstants()
     Aa = | Ad  Bd|  Ba = | Bd|
          | 0   I |       | I |
 
-        Ca = |0 I 0 0 0| x = |q|
+    Ca = |0 I 0 0 0| x = |q|
 */
     this->qhl << -PI * 30 / 180, PI * 60 / 180;
 
@@ -78,13 +78,13 @@ void RGC5::UpdateModelConstants()
 
     /*
         1ª cons: joint position
-        q_min <= q <= q_max
+        qr_min <= qr <= qr_max
 
-        C_cons = |0 I 0 0 0|
+        C_cons = |0 0 0 0 I|
 
     */
 
-    this->C_cons.block(0, 2, 2, 2) = Eigen::MatrixXd::Identity(2, 2);
+    this->C_cons.block(0, 7, 2, 2) = Eigen::MatrixXd::Identity(2, 2);
 
     /*
         2º cons: torque

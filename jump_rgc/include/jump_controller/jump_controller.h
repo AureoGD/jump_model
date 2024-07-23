@@ -150,6 +150,8 @@ public:
 
     Eigen::MatrixXd NNStates;
 
+    int npo = -1;
+
 private:
     std::unique_ptr<gz::transport::Node::Publisher> modelSTPub;
     std::string mp_topic = "/JumpRobot/ModelStates";

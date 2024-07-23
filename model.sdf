@@ -46,7 +46,8 @@
     </model>
     <model name='jumpRobot'>
       <link name="body_a">
-        <pose>0 0 0.75 0 0 0</pose>
+        <!-- <pose>0 0 0.75 0 0 0</pose> -->
+        <pose>0 0 0 0 0 0</pose>
         <self_collide>1</self_collide>
         <visual name="visual">
           <pose>0 0 0 0 0 0</pose>
@@ -83,7 +84,8 @@
         </inertial>
       </link>
       <link name="upper_leg_a">
-        <pose>0 0 0.625 0 0 0</pose>
+        <!-- <pose>0 0 0.625 0 0 0</pose> -->
+        <pose>0 0 -0.125.75 0 0 0</pose>
         <self_collide>1</self_collide>
         <visual name="visual">
           <pose>0 0 0 0 0 0</pose>
@@ -120,7 +122,8 @@
         </inertial>
       </link>
       <link name="lower_leg_a">
-        <pose>0 0 0.34 0 0 0</pose>
+        <!-- <pose>0 0 0.34 0 0 0</pose> -->
+        <pose>0 0 -0.41 0 0 0</pose>
         <self_collide>1</self_collide>
         <visual name="visual">
           <pose>0 0 0 0 0 0</pose>
@@ -157,7 +160,8 @@
         </inertial>
       </link>
       <link name="foot">
-        <pose>0 0 0.07 0 0 0</pose>
+        <!-- <pose>0 0 0.07 0 0 0</pose> -->
+        <pose>0 0 -0.68 0 0 0</pose>
         <self_collide>1</self_collide>
         <visual name="visual">
           <pose>0 0 0 0 0 0</pose>

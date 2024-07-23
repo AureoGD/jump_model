@@ -110,6 +110,7 @@ class JumpSystem(object):
                 if done:
                     self.n_int = -1
                     self.robot_model.steps = 0
+                    self.robot_model.first_landing = 0
                     self.ep_reset(ecm)
 
     def ep_reset(self, ecm):
