@@ -139,7 +139,7 @@ class JumpModel(object):
         self.weight_joint_e = 0.005
         self.weight_base_dist = 2.35
         self.weight_foot_dist = 2.25
-        self.weight_jump = 2.75
+        self.weight_jump = 2.5
         self.min_reward = -50
 
         self.time_jump = 0
@@ -208,10 +208,11 @@ class JumpModel(object):
     def learning(self):
         # evaluate the reward of the last choosed action
         reward = self.eval_reward()
-        if self.reward <= self.min_reward:
-            self.episode_reward += reward
-        else:
+        # print(reward)
+        if self.episode_reward + reward <= self.min_reward:
             self.episode_reward = reward
+        else:
+            self.episode_reward += reward
 
         # check if is done
         done = self.done(reward)
@@ -277,7 +278,7 @@ class JumpModel(object):
         if self.first_landing and self.foot_con and self.time_jump != 0:
             self.delta_jump = time.time() - self.time_jump
             self.time_jump = 0
-            reward += self.delta_jump * self.weight_jump
+            reward += self.delta_jump * self.weight_jump + 5
 
         # ic(reward)
 
@@ -292,6 +293,10 @@ class JumpModel(object):
             self.base_pos.data[1, 0] - 0.285 * cos(self.joint_pos.data[0, 0]) - 0.125
             < 0.1
         ):
+            reward = self.min_reward
+
+        # print(self.base_pos.data[1, 0] + self.foot_pos.data[1, 0])
+        if self.base_pos.data[1, 0] + self.foot_pos.data[1, 0] < 0:
             reward = self.min_reward
 
         return reward
