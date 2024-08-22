@@ -116,7 +116,7 @@ class Utils(object):
         self.h13.set_ydata(self.meam_data2)
 
         self.ax12.ignore_existing_data_limits = True
-        ax12_lim = ((0, min(self.h12.get_ydata())), (len(x), max(self.h12.get_ydata())))
+        ax12_lim = ((0, min(self.h12.get_ydata())), (len(x), max(self.h13.get_ydata())))
         self.ax12.update_datalim(ax12_lim)
         self.ax12.autoscale_view()
 

@@ -70,7 +70,7 @@ class DDQN_Network(nn.Module):
         self.optimizer = optim.Adam(self.parameters(), lr=lr)
         self.loss = nn.MSELoss()
         self.device = T.device("cuda:0" if T.cuda.is_available() else "cpu")
-        print(self.device)
+        # print(self.device)
         self.to(self.device)
 
     def forward(self, state):
@@ -124,8 +124,8 @@ class Agent:
             lr=self.lr,
             input_dims=self.input_dims,
             name="ddqn_q_eval",
-            fc1_dims=256,
-            fc2_dims=256,
+            fc1_dims=512 * 2,
+            fc2_dims=512 * 2,
             n_actions=self.n_actions,
             chkpt_dir=self.chkpt_dir,
         )
@@ -134,8 +134,8 @@ class Agent:
             self.lr,
             input_dims=self.input_dims,
             name="ddqn_q_next",
-            fc1_dims=256,
-            fc2_dims=256,
+            fc1_dims=512 * 2,
+            fc2_dims=512 * 2,
             n_actions=self.n_actions,
             chkpt_dir=self.chkpt_dir,
         )

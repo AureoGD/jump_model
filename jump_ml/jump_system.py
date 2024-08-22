@@ -81,6 +81,7 @@ class JumpSystem(object):
         # if the choose action was called once
         if self.n_int != -1:
             self.n_int += 1
+            # ic(self.n_int)
             # check if is necessary to call the learning algorith
             if self.n_int == self.robot_model.step_size:
                 # increment the current step
@@ -138,7 +139,7 @@ class JumpSystem(object):
                     ],
                 )
             max_ep = self.robot_model.UpdateUtils()
-            time.sleep(0.05)
+            time.sleep(0.5)
             if not max_ep:
                 # call to unpause the simulation
                 self.request_reset.pause = False

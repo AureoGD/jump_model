@@ -259,7 +259,9 @@ void JumpController::PreUpdate(const gz::sim::UpdateInfo &_info,
       hal::WriteVector(this->_JumpRobot.foot_pos, this->req.mutable_vec());
       hal::WriteVector(this->_JumpRobot.foot_vel, this->req.mutable_vec());
       hal::WriteVector(jointPos, this->req.mutable_vec());
+      hal::WriteVector(jointVel, this->req.mutable_vec());
       hal::WriteVector(jointPRef, this->req.mutable_vec());
+      hal::WriteVector(Effort_cmd, this->req.mutable_vec());
     }
     else
     {

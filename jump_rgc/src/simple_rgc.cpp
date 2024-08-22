@@ -49,10 +49,10 @@ void SimpleRGC::RGCConfig(double _ts, double _Kp, double _Kd)
     R << 4.0, 0, 0, 4.0;
 
     Ub.resize(5, 1);
-    Ub << _JumpRobot->qU, 0, OsqpEigen::INFTY, -this->g * 5 * _JumpRobot->m_total;
+    Ub << _JumpRobot->qU, 0, OsqpEigen::INFTY, -this->g * 2.5 * _JumpRobot->m_total;
 
     Lb.resize(5, 1);
-    Lb << _JumpRobot->qL, -OsqpEigen::INFTY, 0, -this->g * 0.25 * _JumpRobot->m_total;
+    Lb << _JumpRobot->qL, -OsqpEigen::INFTY, 0, -this->g * 0.5 * _JumpRobot->m_total;
 
     this->po[0]->SetInternalVariables();
     this->po[0]->SetConstants(_ts, 15, 8, _Kp, _Kd);
@@ -111,10 +111,10 @@ void SimpleRGC::RGCConfig(double _ts, double _Kp, double _Kd)
     Q << 0.1, 0, 0, 0, 0.1, 0, 0, 0, 0.015;
 
     Ub.resize(5, 1);
-    Ub << _JumpRobot->qU, 0, OsqpEigen::INFTY, -this->g * 5 * _JumpRobot->m_total;
+    Ub << _JumpRobot->qU, 0, OsqpEigen::INFTY, -this->g * 3 * _JumpRobot->m_total;
 
     Lb.resize(5, 1);
-    Lb << _JumpRobot->qL, -OsqpEigen::INFTY, 0, -this->g * 0.25 * _JumpRobot->m_total;
+    Lb << _JumpRobot->qL, -OsqpEigen::INFTY, 0, -this->g * 0.3 * _JumpRobot->m_total;
 
     Eigen::VectorXd nr;
     nr.resize(1, 1);

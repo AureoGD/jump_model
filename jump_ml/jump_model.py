@@ -32,36 +32,36 @@ class JumpModel(object):
         # TODO import this infos from the SDF file
         self.joint_name = ["base", "hfe", "kfe"]
         self.joint_type = ["prismatic", "revolute", "revolute"]
-        self.joint_p_max = [0.9, 0 * pi / 180, 120 * pi / 180]
-        self.joint_p_min = [0.5, -55 * pi / 180, 60 * pi / 180]
+        self.joint_p_max = [1.0, 0 * pi / 180, 120 * pi / 180]
+        self.joint_p_min = [0.6, -55 * pi / 180, 60 * pi / 180]
 
-        nn_states_input_dim = 13
+        nn_states_input_dim = 18
         n_actions = 6
-        alpha = 0.0005
+        alpha = 0.0001
         gamma = 0.99
         epsilon = 1.0
         batch_size = 64
         epsilon_decay = 5e-6
         epsilon_min = 0.1
-        mem_size = 1024
-        replace_target = 100
+        mem_size = 50000
+        replace_target = 1000
 
         self.nn_input_dim = nn_states_input_dim
 
         # Predict horizon
-        N = 10
+        self.N = 10
 
         # sample time of the simulation
         sim_ts = 0.001
         # duration of one episode (seconds)
         episode_duration = 5
 
-        self.dt = N * sim_ts
+        self.dt = self.N * sim_ts
 
         # number of the current episode
         self.n_ep = 0
         # maximum episodes
-        self.max_ep = 10000
+        self.max_ep = 5000
         # number of episodes to save the model
         self.save_model_every = 10
         # number of the current step
@@ -73,12 +73,12 @@ class JumpModel(object):
 
         # vector of the last states
         self.last_states = np.zeros((nn_states_input_dim, 1))
-        self.teste_v = np.zeros((nn_states_input_dim + 1, 1))
+        # self.teste_v = np.zeros((nn_states_input_dim + 1, 1))
         # vector of the actual state
         self.actual_state = np.zeros((nn_states_input_dim, 1))
 
-        # vector of the last N actions
-        self.actions = -np.ones((N, 1))
+        # vector of the last self.N actions
+        self.actions = -np.ones((self.N, 1))
 
         # vector os the states
         self.base_pos = CreatVectorData(2, 0)  # 0  1
@@ -136,10 +136,15 @@ class JumpModel(object):
             chkpt_dir=self.utils.save_path,
         )
 
-        self.weight_joint_e = 0.005
-        self.weight_base_dist = 2.35
-        self.weight_foot_dist = 2.25
-        self.weight_jump = 2.5
+        self.weight_steps_alive = 0.05
+        self.weight_joint_e = 0.01
+        self.weight_base_dist = 1
+        self.weight_foot_dist = 1
+        self.weight_jump = 1
+        self.weight_transition_viol = 0.01
+        self.weight_constraints_viol = 5
+        self.weight_npo = 0.1
+
         self.min_reward = -50
 
         self.time_jump = 0
@@ -147,22 +152,31 @@ class JumpModel(object):
 
         self.first_landing = 0
 
-        qd_max = 100
+        qd_max = 20
+        tau_max = 100
+        q1_max = 1.57
+        q2_max = 2.18
+        lvel_max = 5
         self.alfa = np.diagflat(
             [
                 1,
                 1,
-                0.5 / 5,
-                0.5 / 5,
+                0.5 / lvel_max,
+                0.5 / lvel_max,
                 1,
                 1,
-                0.5 / 5,
-                0.5 / 5,
-                0.5 / 1.57,
-                0.5 / 2.18,
+                0.5 / lvel_max,
+                0.5 / lvel_max,
+                0.5 / q1_max,
+                0.5 / q2_max,
                 0.5 / qd_max,
                 0.5 / qd_max,
-                1 / N,
+                0.5 / q1_max,
+                0.5 / q2_max,
+                0.5 / tau_max,
+                0.5 / tau_max,
+                1 / self.N,
+                1 / 10,
             ]
         )
 
@@ -180,43 +194,62 @@ class JumpModel(object):
                 [0.5],
                 [0.5],
                 [0.5],
+                [0.5],
+                [0.5],
+                [0.5],
+                [0.5],
                 [0],
+                [0.1],
             ]
         )
-        print(self.alfa.shape)
-        print(self.beta.shape)
+        # print(self.alfa.shape)
+        # print(self.beta.shape)
 
         self.transition_val = 0
 
     def action(self, states):
         # this method returns the choosed action
-        self.actions[:] = np.roll(self.actions, 1)
+
         # self.CheckTransition()
 
         normalized_states = self.normalize_states(
-            np.append(states.reshape(12, 1), [[self.CheckTransition()]], axis=0)
+            np.append(
+                states.reshape(self.nn_input_dim - 2, 1),
+                [[self.CheckTransition()], self.actions[0]],
+                axis=0,
+            )
         ).reshape(
             self.nn_input_dim,
         )
+
+        # roll the actions vector to update
+        self.actions[:] = np.roll(self.actions, 1)
 
         self.actions[0] = self.agent.choose_action(normalized_states)
         # save the current states for learning in the future
         self.last_states = normalized_states
         # return the choosed action
+        # ic("choose action")
+        # ic(normalized_states)
         return self.actions[0]
 
     def learning(self):
         # evaluate the reward of the last choosed action
         reward = self.eval_reward()
+        # ic(reward)
         # print(reward)
-        if self.episode_reward + reward <= self.min_reward:
-            self.episode_reward = reward
-        else:
-            self.episode_reward += reward
+        # if self.episode_reward + reward <= self.min_reward:
+        #     self.episode_reward = reward
+        # else:
+        #     self.episode_reward += reward
+
+        self.episode_reward += reward
+        # ic(self.episode_reward)
 
         # check if is done
-        done = self.done(reward)
+        done = self.done(self.episode_reward)
 
+        # ic(done)
         # update the agent memory
         self.agent.remember(
             self.last_states.reshape(
@@ -229,6 +262,9 @@ class JumpModel(object):
             ),
             done,
         )
+        # ic("learnig")
+        # ic(self.last_states)
+        # ic(self.actual_state)
         # agent learn
         self.agent.learn()
         # return done
@@ -237,75 +273,92 @@ class JumpModel(object):
     def eval_reward(self):
         reward = 0
 
+        reward += self.weight_steps_alive
+
         joint_e = self.joint_refh.data - self.joint_pos.data
-        # ic(self.joint_refh.data, self.joint_pos.data, joint_e)
         for index in range(len(joint_e)):
             reward += self.weight_joint_e / sqrt(joint_e[index] ** 2)
 
-        base_distance = (
-            self.dt
-            * (sqrt(self.base_vel.data[1] ** 2) + sqrt(self.base_vel_a[1] ** 2))
-            / 2
-        )
+        # base_distance = (
+        #     self.dt
+        #     * (sqrt(self.base_vel.data[1] ** 2) + sqrt(self.base_vel_a[1] ** 2))
+        #     / 2
+        # )
 
-        # ic(self.base_vel_a.shape, self.base_pos.data.shape)
-        self.base_vel_a[:] = self.base_vel.data[:, -1]
+        # # ic(self.base_vel_a.shape, self.base_pos.data.shape)
+        # self.base_vel_a[:] = self.base_vel.data[:, -1]
 
-        self.episode_base_distance += base_distance
-        reward += self.weight_base_dist * base_distance
+        # self.episode_base_distance += base_distance
+        # reward += self.weight_base_dist * base_distance
 
-        foot_distance = (
-            self.dt
-            * (
-                sqrt(self.foot_vel.data[0] ** 2 + self.foot_vel.data[1] ** 2)
-                + sqrt(self.foot_vel_a[0] ** 2 + self.foot_vel_a[1] ** 2)
-            )
-            / 2
-        )
-        self.foot_vel_a[:] = self.foot_vel.data[:, -1]
+        # foot_distance = (
+        #     self.dt
+        #     * (
+        #         sqrt(self.foot_vel.data[0] ** 2 + self.foot_vel.data[1] ** 2)
+        #         + sqrt(self.foot_vel_a[0] ** 2 + self.foot_vel_a[1] ** 2)
+        #     )
+        #     / 2
+        # )
+        # self.foot_vel_a[:] = self.foot_vel.data[:, -1]
 
-        self.episode_foot_distance += foot_distance
-        reward += self.weight_foot_dist * foot_distance
+        # self.episode_foot_distance += foot_distance
+        # reward += self.weight_foot_dist * foot_distance
 
-        reward += -0.5 * (1 - self.cons_viol.data[0, 0])
+        # if self.foot_con and not self.first_landing:
+        #     self.first_landing = 1
 
-        if self.foot_con and not self.first_landing:
-            self.first_landing = 1
+        # if self.first_landing and not self.foot_con and self.time_jump == 0:
+        #     self.time_jump = time.time()
 
-        if self.first_landing and not self.foot_con:
-            self.time_jump = time.time()
-
-        if self.first_landing and self.foot_con and self.time_jump != 0:
-            self.delta_jump = time.time() - self.time_jump
-            self.time_jump = 0
-            reward += self.delta_jump * self.weight_jump + 5
+        # if self.first_landing and self.foot_con and self.time_jump != 0:
+        #     self.delta_jump = time.time() - self.time_jump
+        #     self.time_jump = 0
+        #     reward += self.delta_jump * self.weight_jump + 1
 
         # ic(reward)
 
-        # trans_val = self.CheckTransition()
+        if self.foot_con:
+            if self.npo.data == 2 or self.npo.data == 3:
+                reward += -self.weight_npo
 
-        # ic(trans_val)
+        reward += -self.weight_constraints_viol * (1 - self.cons_viol.data[0, 0])
 
-        reward += -0.005 * self.transition_val
+        trans_val = self.CheckTransition()
+        reward += -self.weight_transition_viol * trans_val
 
         # terminal condition: if the knee is near of the ground
-        if (
-            self.base_pos.data[1, 0] - 0.285 * cos(self.joint_pos.data[0, 0]) - 0.125
-            < 0.1
-        ):
-            reward = self.min_reward
+        # if (
+        #     self.base_pos.data[1, 0] - 0.285 * cos(self.joint_pos.data[0, 0]) - 0.125
+        #     < 0.05
+        # ):
+        #     reward = self.min_reward
 
-        # print(self.base_pos.data[1, 0] + self.foot_pos.data[1, 0])
-        if self.base_pos.data[1, 0] + self.foot_pos.data[1, 0] < 0:
-            reward = self.min_reward
+        # # print(self.base_pos.data[1, 0] + self.foot_pos.data[1, 0])
+        # if self.base_pos.data[1, 0] + self.foot_pos.data[1, 0] < 0:
+        #     reward = self.min_reward
 
         return reward
 
     def done(self, reward):
         # ic(self.steps)
         # when finish the time of episode or the reward is too low
-        if self.steps == self.max_steps or self.episode_reward <= self.min_reward:
-            # print("true")
+        if self.steps == self.max_steps:
+            # ic("true")
+            return True
+
+        if self.episode_reward <= self.min_reward:
+            # ic("true")
+            return True
+
+        # terminal condition: if the knee is near of the ground
+        if (
+            self.base_pos.data[1, 0] - 0.285 * cos(self.joint_pos.data[0, 0]) - 0.125
+            < 0.05
+        ):
+            return True
+
+        # # print(self.base_pos.data[1, 0] + self.foot_pos.data[1, 0])
+        if self.base_pos.data[1, 0] + self.foot_pos.data[1, 0] < -0.05:
             return True
 
         # otherwise continue
@@ -322,8 +375,11 @@ class JumpModel(object):
         self.actual_state[4:6] = self.foot_pos.data
         self.actual_state[6:8] = self.foot_vel.data
         self.actual_state[8:10] = self.joint_pos.data
-        self.actual_state[10:12] = self.joint_refl.data
-        self.actual_state[12] = self.transition_val
+        self.actual_state[10:12] = self.joint_vel.data
+        self.actual_state[12:14] = self.joint_refl.data
+        self.actual_state[14:16] = self.joint_tau.data
+        self.actual_state[16] = self.transition_val
+        self.actual_state[17] = self.actions[0]
         self.actual_state[:] = self.normalize_states(self.actual_state)
 
     def normalize_states(self, states):
@@ -354,6 +410,7 @@ class JumpModel(object):
         )
 
         self.episode_reward = 0
+        self.actions = -np.ones((self.N, 1))
         self.episode_base_distance = 0
         self.episode_foot_distance = 0
 
